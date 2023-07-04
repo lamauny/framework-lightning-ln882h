@@ -13,12 +13,12 @@
 
 void assert_failed(uint8_t* file, uint32_t line)
 {
-    uint8_t *file_name = file;
-    uint32_t line_num  = line;
+//    uint8_t *file_name = file;
+//    uint32_t line_num  = line;
 
     while(1)
     {
-        LOG(LOG_LVL_ERROR,"ASSERT Failed-> file: %s @ line %d\r\n", file_name, line_num);
+        //LOG(LOG_LVL_ERROR,"ASSERT Failed-> file: %s @ line %d\r\n", file_name, line_num);
         for(volatile uint32_t i = 0; i < 10000000;i++);
     };
 }

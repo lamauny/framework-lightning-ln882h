@@ -51,6 +51,22 @@ int port_serial_getchar(uint8_t* ch, uint32_t timeout)
     return size;
 }
 
+int port_serial_getchars(uint8_t* ch, uint32_t len ,uint32_t timeout)
+{
+    int size = 0;
+    int exp_len = len;
+    int act_len = 0;
+    while ((timeout--) > 0) {
+        size = bootram_serial_read(ch, exp_len);
+        ch += size;
+        act_len += size;
+        exp_len -= size;
+        if (act_len == len) {
+            return act_len;
+        }
+    }
+    return act_len;
+}
 /*
  * @brief: Receive one frame data(data_len = 128 or data_len = 1024)
  * @param: ymode: ymodem context handle
@@ -59,7 +75,6 @@ int port_serial_getchar(uint8_t* ch, uint32_t timeout)
  **/
 static frame_state_enum_t ymodem_frame_receive(ymodem_t* ymode)
 {
-    uint32_t i      = 0;
     uint8_t* in_ptr = ymode->data_buf;
     uint16_t crc16  = 0;
     uint8_t  seqno, seqno_comp, crc_h, crc_l;
@@ -79,12 +94,16 @@ static frame_state_enum_t ymodem_frame_receive(ymodem_t* ymode)
     }
 
     // receive data0.1...128/1024
-    for (i = 0; i < ymode->data_len; i++) {
-        if (false == port_serial_getchar(in_ptr, READ_TIMEOUT)) {
-            return FRAME_TIMEOUT;
-        }
-        in_ptr++;
+//    for (i = 0; i < ymode->data_len; i++) {
+//        if (false == port_serial_getchar(in_ptr, READ_TIMEOUT)) {
+//            return FRAME_TIMEOUT;
+//        }
+//        in_ptr++;
+//    }
+    if(port_serial_getchars(in_ptr,ymode->data_len,READ_CHARS_TIMEOUT) != ymode->data_len){
+        return FRAME_TIMEOUT;
     }
+    in_ptr += ymode->data_len;
 
     // receive crc high 8 bit
     if (false == port_serial_getchar(&crc_h, READ_TIMEOUT)) {
@@ -198,6 +217,7 @@ ymodem_state_enum_t ymodem_recieve_loop(ymodem_t* ymode, frame_rcv_complete_cb f
                                 }
                                 ymode->rev_len += ymode->valid_data_len;
 
+                                port_serial_putchar(MODEM_ACK);  // send ACK
                                 if (ymode->valid_data_len != frame_cb(ymode)) {
                                     port_serial_putchar(MODEM_CAN);
                                     port_serial_putchar(MODEM_CAN);
@@ -205,7 +225,6 @@ ymodem_state_enum_t ymodem_recieve_loop(ymodem_t* ymode, frame_rcv_complete_cb f
                                     break;
                                 }
 
-                                port_serial_putchar(MODEM_ACK);  // send ACK
                             }
 
                             ymode->packet_count++;

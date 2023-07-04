@@ -83,6 +83,13 @@ static bootram_cmd_tbl_t bootram_cmd_list[] = {
         "flash_test.\r\n"
     },
     
+    {
+        "flash_uid",
+        1,
+        cmd_flash_uid,
+        "get flash uid.\r\n"
+    },
+    
 
 #if (defined(DEBUG_FLASH_ROBUST) && (DEBUG_FLASH_ROBUST == 1))
     {
@@ -203,7 +210,7 @@ int bootram_enter_command_mode(void)
     rd_len = bootram_serial_read(&ch, 1);
     if (rd_len > 0) {
         if (isprint(ch)) {
-            bootram_serial_write(&ch, 1);
+            //bootram_serial_write(&ch, 1);
             // put this char into console_ctrl.console_buffer
             cmd_ctrl->cmd_line[cmd_ctrl->index++] = ch;
             if (cmd_ctrl->index >= CMD_PBSIZE) {
@@ -227,6 +234,9 @@ int bootram_enter_command_mode(void)
                 }
             }
 
+            memset(cmd_ctrl->cmd_line, 0, CMD_PBSIZE);
+            cmd_ctrl->index = 0;
+        }else{
             memset(cmd_ctrl->cmd_line, 0, CMD_PBSIZE);
             cmd_ctrl->index = 0;
         }
@@ -267,10 +277,37 @@ int cmd_flash_info(bootram_cmd_tbl_t* cmdtbl, int argc, char* argv[])
     if((ret & 0xFF) == 0x15){
         flash_size = 2;
     }else{
-        flash_size = 1;
+        flash_size = 0;
     }
     
     sprintf(buf, "\r\nid:0x%X,flash size:%dM Byte\r\n", ret,flash_size);
+
+    for (int i = 0; i < strlen(buf); i++) {
+        uint8_t ch = buf[i];
+        bootram_serial_write(&ch, 1);
+    }
+    
+    return 0;
+}
+
+int cmd_flash_uid(bootram_cmd_tbl_t* cmdtbl, int argc, char* argv[])
+{
+    char     buf[60]    = {0};
+    char     uid[16]    = {0};
+    char     str_uid[40]= {0};
+    
+    bootram_flash_uid((uint8_t*)uid);
+    
+    for(int i = 0; i < 16; i++){
+        sprintf(str_uid+i*2, "%02X", uid[i]);
+    }
+    
+    sprintf(buf, "\r\nflash uid:0x%s\r\n", str_uid);
+    
+    if(strlen(buf) > 60){
+        while(1);
+    }
+    
 
     for (int i = 0; i < strlen(buf); i++) {
         uint8_t ch = buf[i];
@@ -300,7 +337,7 @@ int cmd_flash_test(bootram_cmd_tbl_t* cmdtbl, int argc, char* argv[])
     
     for(int i = 0; i < 4096; i ++)
     {
-        write_buf[i] = i;
+        write_buf[i] = 0x55;
     }
     
     ret = 0;
@@ -319,6 +356,30 @@ int cmd_flash_test(bootram_cmd_tbl_t* cmdtbl, int argc, char* argv[])
         }
         if(ret != 0)
             break;
+    }
+    
+    if(ret == 0){
+        for(int i = 0; i < 4096; i ++)
+        {
+            write_buf[i] = 0xAA;
+        }
+        bootram_flash_chiperase();
+        for(int i = 0; i < flash_size / 0x1000; i ++)
+        {
+            bootram_flash_write(i * 0x1000,0x1000,write_buf);
+            bootram_flash_read(i * 0x1000,0x1000,read_buf);
+            for(int x = 0; x < 4096; x ++)
+            {
+                if(write_buf[x] != read_buf[x]){
+                    ret = 1;
+                    err_pos = i * 0x1000 + x;
+                    break;
+                }
+            }
+            if(ret != 0)
+                break;
+        }
+    
     }
     
     if(ret == 0){

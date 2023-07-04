@@ -47,7 +47,7 @@ void hal_qspi_standard_read_byte(uint8_t *rd_ptr, uint32_t rd_len, uint8_t *wr_p
 {
     uint32_t i = 0;
 
-    qspi_sckdv_setf(16);
+    qspi_sckdv_setf(4);
 
     //QSPI_SlaveSelect
     qspi_ser_setf(0);
@@ -78,7 +78,7 @@ void hal_qspi_standard_read_word(uint32_t *rd_ptr, uint32_t rd_len_in_word, uint
     uint32_t i = 0, rd_tmp = 0;
     uint8_t * pdata = (uint8_t *)rd_ptr;
 
-    qspi_sckdv_setf(16);
+    qspi_sckdv_setf(4);
 
     qspi_ser_setf(0);//LL_QSPI_SlaveSelect(0);
     qspi_ctrlr0_pack(QSPI_STANDARD, DFS_32_32_BITS, 0, 0, 0, QSPI_EEPROM_READ, CLK_INACTIVE_LOW, CLK_TOGGLE_IN_MIDDLE, QSPI_MOTOROLA);
@@ -108,7 +108,7 @@ void hal_qspi_standard_read_word(uint32_t *rd_ptr, uint32_t rd_len_in_word, uint
 
 void hal_qspi_standard_write(uint8_t *bufptr, uint32_t length)
 {
-    qspi_sckdv_setf(16); //QSPI SCK DIV
+    qspi_sckdv_setf(4); //QSPI SCK DIV
 
     qspi_ser_setf(0);//LL_QSPI_SlaveSelect
     qspi_ctrlr0_pack(QSPI_STANDARD, DFS_32_8_BITS, 0, 0, 0, QSPI_TX_ONLY, CLK_INACTIVE_LOW, CLK_TOGGLE_IN_MIDDLE, QSPI_MOTOROLA);

@@ -18,10 +18,11 @@
 #define YMODEM_PACKET_BIG_SIZE   (1024 * 16)
 
 // put ymodem packets into `g_cache_buffer` before program to flash.
-#define CACHE_BUFFER_SIZE        (1024 * 64)
+#define CACHE_BUFFER_SIZE        (1024 * 16)
 
 #define MODEM_MAX_RETRIES        (0xFFFFFFF)  //
 #define READ_TIMEOUT             0xFFFF
+#define READ_CHARS_TIMEOUT       0xFFFFFFF
 #define MODEM_FILE_NAME_SIZE     64
 #define MODEM_MAX_ERRORS         20
 

@@ -217,8 +217,7 @@ uint32_t bootram_save_block_data_to_flash(ymodem_t* mblock)
     }
 
     if (mblock->rev_len < mblock->filelen) {  // file receive not complete
-        if (upgrade_ctrl->cache_buffer_pos >=
-            CACHE_BUFFER_SIZE) {  // buffer is full, write to flash.
+        if (upgrade_ctrl->cache_buffer_pos >= CACHE_BUFFER_SIZE) {  // buffer is full, write to flash.
             if (upgrade_ctrl->flash_write_offset % SIZE_4KB == 0) {  // aligned.
                 ret = flush_to_storage_aligned(upgrade_ctrl, 0);
                 if (0 != ret) {
