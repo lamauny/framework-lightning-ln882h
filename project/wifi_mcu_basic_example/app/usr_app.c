@@ -22,6 +22,8 @@
 #define PM_WIFI_DEFAULT_PS_MODE           (WIFI_NO_POWERSAVE)
 #define WIFI_TEMP_CALIBRATE               (1)
 
+#define WIFI_USER_USE_WPA3                (1) /* 0: Not use; 1: Use */
+
 #define USR_APP_TASK_STACK_SIZE           (6*256) //Byte
 
 #if WIFI_TEMP_CALIBRATE
@@ -36,6 +38,9 @@ static void wifi_init_ap(void);
 static void wifi_init_sta(void);
 static void usr_app_task_entry(void *params);
 static void temp_cal_app_task_entry(void *params);
+
+app_sta_scan_cfg_t g_sta_scan_cfg = {0};
+static ap_info_t *g_sc_data = NULL;
 
 static uint8_t mac_addr[6]        = {0x00, 0x50, 0xC2, 0x5E, 0x88, 0x99};
 static uint8_t psk_value[40]      = {0x0};
@@ -94,6 +99,72 @@ static void wifi_scan_complete_cb(void * arg)
     wifi_manager_ap_list_update_enable(LN_TRUE);
 }
 
+static void wifi_connect_failed_cb(void * arg)
+{
+    wifi_sta_connect_failed_reason_t reason = *(wifi_sta_connect_failed_reason_t*)arg;
+    LOG(LOG_LVL_INFO, "############ wifi_connect_failed!, reason = %d, please retry. ############\r\n", reason);
+}
+
+/*
+* eg. 该函数需要参数data需用app_sta_scan_data_t类型去强转
+*     读取完一次数去后需将 g_sta_scan_cfg.data_fetech = 0;之后,才能进行下一轮读取.
+*     
+*      static void sta_scan_cb(void *arg)
+*      {
+*        app_sta_scan_cfg_t *cfg = &g_sta_scan_cfg;
+*        while(cfg->data->next != NULL)
+*        {
+*           LOG(LOG_LVL_WARN, "ap info : ssid = %s\r\n", cfg->data->next->data.ssid);
+*            cfg->data = cfg->data->next;
+*        }
+*        cfg->data_fetech = 0;
+*      }
+*/
+int wifi_mgmr_scan_adv(void *data, void (*cb)(void *arg), uint16_t *channels, uint16_t channel_num, uint8_t *bssid, char *ssid, uint8_t scan_mode, uint32_t duration_scan)
+{
+    app_sta_scan_cfg_t *cfg = &g_sta_scan_cfg;
+    wifi_scan_cfg_t sc_cfg = {0};
+    uint8_t i = 0;
+    scan_cfg.channel = 0;
+    scan_cfg.scan_time = 20;
+    scan_cfg.scan_type = scan_mode;
+    
+    memset(cfg, 0, sizeof(app_sta_scan_cfg_t));
+    cfg->channel_num = channel_num;
+    cfg->scan_mode = scan_mode;
+    cfg->duration_scan = duration_scan;
+
+    if(channel_num)
+    {
+        cfg->channels[0] = channel_num;
+        memcpy(&cfg->channels[1], channels, sizeof(uint16_t) * channel_num);
+        cfg->filter_mask |= (1 << 0);
+    }
+    if(bssid != NULL)
+    {
+        cfg->bssid[0] = 0x01;
+        memcpy(&cfg->bssid[1], bssid, 6);
+        cfg->filter_mask |= (1 << 1);
+    }
+    if(ssid != NULL)
+    {
+        cfg->ssid[0] = strlen(ssid);
+        memcpy(cfg->ssid + 1, ssid, strlen(ssid));
+        cfg->filter_mask |= (1 << 2);
+    }
+    data = (void *)cfg->data;
+    //if sta is scanning
+    wifi_sta_status_t status;
+    wifi_get_sta_status(&status);
+    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, cb);
+    if(WIFI_STA_STATUS_SCANING != status)
+    {
+        wifi_sta_scan(&sc_cfg);
+    }
+    
+    return 0;
+}
+
 void wifi_init_sta(void)
 {
     sta_ps_mode_t ps_mode = PM_WIFI_DEFAULT_PS_MODE;
@@ -119,7 +190,11 @@ void wifi_init_sta(void)
 
     //3. wifi start
     wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, &wifi_scan_complete_cb);
-
+    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECT_FAILED, &wifi_connect_failed_cb);
+#if (WIFI_USER_USE_WPA3 == 1)
+    extern void ln_wpa_sae_enable(void);
+    ln_wpa_sae_enable();
+#endif
     if(WIFI_ERR_NONE != wifi_sta_start(mac_addr, ps_mode)){
         LOG(LOG_LVL_ERROR, "[%s]wifi sta start filed!!!\r\n", __func__);
     }
@@ -132,7 +207,8 @@ void wifi_init_sta(void)
         }
     }
 
-    wifi_sta_connect(&connect, &scan_cfg);
+    //wifi_sta_connect(&connect, &scan_cfg);
+    wifi_sta_connect_v2(&connect, &scan_cfg, 30);
 }
 
 static void ap_startup_cb(void * arg)
@@ -183,6 +259,20 @@ void wifi_init_ap(void)
     }
 }
 
+static void wifi_connect_status_dump(void)
+{
+    wifi_sta_connect_failed_reason_t reason = WIFI_STA_CONN_SUCCESSFUL;
+    wifi_sta_conn_fail_detail_t detail = {0};
+    wifi_get_sta_conn_fail_reason(&reason);
+    wifi_get_sta_conn_fail_detail(&detail);
+
+    LOG(LOG_LVL_INFO, "[user] reason: %d \r\n", reason);
+    LOG(LOG_LVL_INFO, "[802.11] reason: %d; status: %d; private: 0x%02x%02x\r\n",
+        detail.reason_code,
+        detail.status_code,
+        detail.private_err_code[1],
+        detail.private_err_code[0]);
+}
 
 void usr_app_task_entry(void *params)
 {
@@ -195,11 +285,20 @@ void usr_app_task_entry(void *params)
 
     while (!netdev_got_ip()) {
         OS_MsDelay(1000);
+
+        if (wifi_current_mode_get() == WIFI_MODE_STATION) {
+            wifi_connect_status_dump();
+        }
     }
-    
+
+    LOG(LOG_LVL_INFO, "[user] Got the IP address.\r\n");
+
     while(1)
     {
         OS_MsDelay(1000);
+        if (wifi_current_mode_get() == WIFI_MODE_STATION) {
+            wifi_connect_status_dump();
+        }
     }
 }
 
