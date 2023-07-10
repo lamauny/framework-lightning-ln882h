@@ -5,6 +5,7 @@
 #include "utils/debug/log.h"
 #include "utils/ln_list.h"
 
+#include "usr_app.h"
 
 typedef struct {
     ln_list_t       list;
@@ -18,6 +19,7 @@ typedef struct {
 static wifi_mgr_event_cb_t event_cb[WIFI_MGR_EVENT_MAX] = {NULL};
 static ap_info_list_ctrl_t ap_info_list_ctrl = {0,};
 
+static app_sta_scan_data_t *g_ap_data = NULL;
 
 __STATIC_INLINE__ int ap_info_list_init(void)
 {
@@ -229,8 +231,173 @@ static void sta_disconnected(void)
     }
 }
 
+//list init
+static app_sta_scan_data_t *init_list(void)
+{
+    app_sta_scan_data_t *p = (app_sta_scan_data_t *)OS_Malloc(sizeof(app_sta_scan_data_t));
+    p->next = NULL;
+    return p;
+}
+
+//list delete
+static void deinit_list(app_sta_scan_data_t *list)
+{
+    while(list != NULL)
+    {
+        OS_Free(list);
+        list = list->next;
+    }
+    list = NULL;
+}
+
+//insert list
+static app_sta_scan_data_t *insert_list(app_sta_scan_data_t *list, void *data)
+{
+    app_sta_scan_data_t *p = OS_Malloc(sizeof(app_sta_scan_data_t));
+
+    memcpy(&p->data, (ap_info_t *)data, sizeof(ap_info_t));
+    p->next = list->next;
+    list->next = p;
+    return list;
+}
+
 static void sta_scan_complete(void)
 {
+    ln_list_t *list;
+    uint8_t node_count = 0;
+    ap_info_node_t *pnode;
+    app_sta_scan_cfg_t *cfg = &g_sta_scan_cfg;
+    uint8_t channel_num = cfg->channel_num;
+    if(g_ap_data != NULL && cfg->data_fetech == 0)
+    {
+        deinit_list(g_ap_data);
+    }
+    wifi_manager_ap_list_update_enable(LN_FALSE);
+    wifi_manager_get_ap_list(&list, &node_count);
+    // 2.print all ap info in the list.
+    if(!cfg->data_fetech)
+    {
+        cfg->data_fetech = 1;
+        g_ap_data = init_list();
+
+        LN_LIST_FOR_EACH_ENTRY(pnode, ap_info_node_t, list,list)
+        {
+            uint8_t * mac = (uint8_t*)pnode->info.bssid;
+            ap_info_t *ap_info = &pnode->info;
+            switch(cfg->filter_mask)
+            {
+                //all list
+                case 0x00:
+                {
+                    insert_list(g_ap_data, (void *)&pnode->info);
+                }break;
+                //channel
+                case 0x01:
+                {
+                    for(uint8_t ch = 1; ch < cfg->channel_num; ch ++)
+                    {
+                        if(pnode->info.channel == cfg->channels[ch])
+                            insert_list(g_ap_data, (void *)&pnode->info);
+                    }
+                }
+                //bssid
+                case 0x02:
+                {
+                    if(pnode->info.bssid[0] == cfg->bssid[1] && \
+                       pnode->info.bssid[1] == cfg->bssid[2] && \
+                       pnode->info.bssid[2] == cfg->bssid[3] && \
+                       pnode->info.bssid[3] == cfg->bssid[4] && \
+                       pnode->info.bssid[4] == cfg->bssid[5] && \
+                       pnode->info.bssid[5] == cfg->bssid[6] \
+                      )
+                    {
+                        insert_list(g_ap_data, (void *)&pnode->info);
+                    }
+                }break;
+                //channel & bssid
+                case 0x03:
+                {
+                    for(uint8_t ch = 1; ch < cfg->channel_num; ch ++)
+                    {
+                        if(pnode->info.channel == cfg->channels[ch])
+                        {
+                            if(pnode->info.bssid[0] == cfg->bssid[1] && \
+                               pnode->info.bssid[1] == cfg->bssid[2] && \
+                               pnode->info.bssid[2] == cfg->bssid[3] && \
+                               pnode->info.bssid[3] == cfg->bssid[4] && \
+                               pnode->info.bssid[4] == cfg->bssid[5] && \
+                               pnode->info.bssid[5] == cfg->bssid[6] \
+                              )
+                            {
+                                insert_list(g_ap_data, (void *)&pnode->info);
+                            }
+                            
+                        }
+                    }
+                }break;
+                //ssid
+                case 0x04:
+                {
+                    if(!strcmp(cfg->ssid + 1, pnode->info.ssid))
+                        insert_list(g_ap_data, (void *)&pnode->info);
+                }break;
+                //ssid & channel
+                case 0x05:
+                {
+                    for(uint8_t ch = 1; ch < cfg->channel_num; ch ++)
+                    {
+                        if(pnode->info.channel == cfg->channels[ch])
+                        {
+                            if(!strcmp(cfg->ssid + 1, pnode->info.ssid))
+                                insert_list(g_ap_data, (void *)&pnode->info);
+                        }
+                    }
+                }break;
+                //ssid & bssid
+                case 0x06:
+                {
+                    if(pnode->info.bssid[0] == cfg->bssid[1] && \
+                       pnode->info.bssid[1] == cfg->bssid[2] && \
+                       pnode->info.bssid[2] == cfg->bssid[3] && \
+                       pnode->info.bssid[3] == cfg->bssid[4] && \
+                       pnode->info.bssid[4] == cfg->bssid[5] && \
+                       pnode->info.bssid[5] == cfg->bssid[6] && (!strcmp(cfg->ssid + 1, pnode->info.ssid))\
+                      )
+                    {
+                        insert_list(g_ap_data, (void *)&pnode->info);
+                    }
+                    
+                }break;
+                //ssid & bssid & channel
+                case 0x07:
+                {
+                    for(uint8_t ch = 1; ch < cfg->channel_num; ch ++)
+                    {
+                        if(pnode->info.channel == cfg->channels[ch])
+                        {
+                            if(pnode->info.bssid[0] == cfg->bssid[1] && \
+                               pnode->info.bssid[1] == cfg->bssid[2] && \
+                               pnode->info.bssid[2] == cfg->bssid[3] && \
+                               pnode->info.bssid[3] == cfg->bssid[4] && \
+                               pnode->info.bssid[4] == cfg->bssid[5] && \
+                               pnode->info.bssid[5] == cfg->bssid[6] && (!strcmp(cfg->ssid + 1, pnode->info.ssid))\
+                              )
+                            {
+                                insert_list(g_ap_data, (void *)&pnode->info);
+                            }
+                        }
+                    }
+                }break;
+                //default
+                default:
+                    break;
+            }
+        }
+    }
+    cfg->data = g_ap_data;
+
+    wifi_manager_ap_list_update_enable(LN_TRUE);
+    
     if (event_cb[WIFI_MGR_EVENT_STA_SCAN_COMPLETE]) {
         event_cb[WIFI_MGR_EVENT_STA_SCAN_COMPLETE](NULL);
     }

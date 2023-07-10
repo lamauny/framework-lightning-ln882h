@@ -44,6 +44,9 @@ static void wifi_init_sta(void);
 static void usr_app_task_entry(void *params);
 static void temp_cal_app_task_entry(void *params);
 
+app_sta_scan_cfg_t g_sta_scan_cfg = {0};
+static ap_info_t *g_sc_data = NULL;
+
 static uint8_t mac_addr[6]        = {0x00, 0x50, 0xC2, 0x5E, 0xAA, 0xDA};
 static uint8_t psk_value[40]      = {0x0};
 // static uint8_t target_ap_bssid[6] = {0xC0, 0xA5, 0xDD, 0x84, 0x6F, 0xA8};
@@ -100,6 +103,67 @@ static void wifi_scan_complete_cb(void * arg)
 
     wifi_manager_ap_list_update_enable(LN_TRUE);
 }
+
+/*
+* eg. 该函数需要参数data需用app_sta_scan_data_t类型去强转
+*     读取完一次数去后需将 g_sta_scan_cfg.data_fetech = 0;之后,才能进行下一轮读取.
+*     
+*      static void sta_scan_cb(void *arg)
+*      {
+*        app_sta_scan_cfg_t *cfg = &g_sta_scan_cfg;
+*        while(cfg->data->next != NULL)
+*        {
+*           LOG(LOG_LVL_WARN, "ap info : ssid = %s\r\n", cfg->data->next->data.ssid);
+*            cfg->data = cfg->data->next;
+*        }
+*        cfg->data_fetech = 0;
+*      }
+*/
+int wifi_mgmr_scan_adv(void *data, void (*cb)(void *arg), uint16_t *channels, uint16_t channel_num, uint8_t *bssid, char *ssid, uint8_t scan_mode, uint32_t duration_scan)
+{
+    app_sta_scan_cfg_t *cfg = &g_sta_scan_cfg;
+    wifi_scan_cfg_t sc_cfg = {0};
+    uint8_t i = 0;
+    scan_cfg.channel = 0;
+    scan_cfg.scan_time = 20;
+    scan_cfg.scan_type = scan_mode;
+    
+    memset(cfg, 0, sizeof(app_sta_scan_cfg_t));
+    cfg->channel_num = channel_num;
+    cfg->scan_mode = scan_mode;
+    cfg->duration_scan = duration_scan;
+
+    if(channel_num)
+    {
+        cfg->channels[0] = channel_num;
+        memcpy(&cfg->channels[1], channels, sizeof(uint16_t) * channel_num);
+        cfg->filter_mask |= (1 << 0);
+    }
+    if(bssid != NULL)
+    {
+        cfg->bssid[0] = 0x01;
+        memcpy(&cfg->bssid[1], bssid, 6);
+        cfg->filter_mask |= (1 << 1);
+    }
+    if(ssid != NULL)
+    {
+        cfg->ssid[0] = strlen(ssid);
+        memcpy(cfg->ssid + 1, ssid, strlen(ssid));
+        cfg->filter_mask |= (1 << 2);
+    }
+    data = (void *)cfg->data;
+    //if sta is scanning
+    wifi_sta_status_t status;
+    wifi_get_sta_status(&status);
+    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, cb);
+    if(WIFI_STA_STATUS_SCANING != status)
+    {
+        wifi_sta_scan(&sc_cfg);
+    }
+    
+    return 0;
+}
+
 
 static void wifi_init_sta(void)
 {
