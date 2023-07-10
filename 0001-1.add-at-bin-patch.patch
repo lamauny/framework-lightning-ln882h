@@ -1,7 +1,7 @@
-From 12d9538462a4098df42b5a31a21c453ca288cdde Mon Sep 17 00:00:00 2001
+From 6ced7db75e9136ab42ff322186c2956d3ef7ac0e Mon Sep 17 00:00:00 2001
 From: john_zhangsz <john.zhang@lightningsemi.com>
-Date: Fri, 9 Jun 2023 18:01:15 +0800
-Subject: [PATCH] 1.add at-bin.patch
+Date: Mon, 10 Jul 2023 17:05:12 +0800
+Subject: [PATCH] 1.add at-bin patch
 
 ---
  CMakeLists.txt                                |   26 +-
@@ -50,7 +50,7 @@ Subject: [PATCH] 1.add at-bin.patch
  components/utils/system_parameter.h           |   25 +-
  components/wifi/wifi_lib_export/wifi.h        |    4 +-
  components/wifi/wifi_lib_import/wifi_port.c   |   13 +-
- components/wifi/wifi_manager/wifi_manager.c   |    8 +
+ components/wifi/wifi_manager/wifi_manager.c   |  175 +-
  project/aws_iot_core/CMakeLists.txt           |   72 -
  project/aws_iot_core/ProjModuleCollect.cmake  |  196 -
  project/aws_iot_core/README.md                |   67 -
@@ -173,7 +173,7 @@ Subject: [PATCH] 1.add at-bin.patch
  .../app/main.c                                |   17 +-
  .../app/sys_driver_port.c                     |   48 +
  .../app/sys_driver_port.h                     |   53 +
- .../app/usr_app.c                             |  152 +-
+ .../app/usr_app.c                             |  216 +-
  .../app/usr_app.h                             |    0
  .../app/usr_ble_app.c                         |    8 +-
  .../app/usr_ble_app.h                         |    0
@@ -213,7 +213,7 @@ Subject: [PATCH] 1.add at-bin.patch
  .../transparent/transport_udp.h               |   11 +
  .../transparent/transport_utils.c             |  160 +
  .../transparent/transport_utils.h             |   50 +
- project/combo_mcu_basic_example/app/usr_app.h |   20 -
+ project/combo_mcu_basic_example/app/usr_app.h |   45 -
  .../combo_mcu_basic_example/app/usr_ble_app.h |   65 -
  .../combo_mcu_basic_example/bsp/serial_hw.c   |  518 ---
  .../combo_mcu_basic_example/bsp/serial_hw.h   |   42 -
@@ -226,8 +226,8 @@ Subject: [PATCH] 1.add at-bin.patch
  project/combo_mcu_basic_example/gcc/ln882h.ld |  170 -
  .../keil_ln882h_rel/.gitignore                |    7 -
  .../keil_ln882h_rel/JLinkSettings.ini         |   39 -
- .../keil_ln882h_rel/firmware_XIP.uvoptx       | 2214 -----------
- .../keil_ln882h_rel/firmware_XIP.uvprojx      | 1321 -------
+ .../keil_ln882h_rel/firmware_XIP.uvoptx       | 2335 ------------
+ .../keil_ln882h_rel/firmware_XIP.uvprojx      | 1339 -------
  .../startup/startup_ln882h.S                  |  297 --
  project/http_ota_example/CMakeLists.txt       |   44 -
  .../http_ota_example/ProjModuleCollect.cmake  |  159 -
@@ -301,7 +301,7 @@ Subject: [PATCH] 1.add at-bin.patch
  .../keil_ln882h_rel/firmware_XIP.uvprojx      | 1203 ------
  .../startup/startup_ln882h.S                  |  297 --
  .../startup/startup_ln882h_gcc.c              |  262 --
- 297 files changed, 12423 insertions(+), 53058 deletions(-)
+ 297 files changed, 12423 insertions(+), 53453 deletions(-)
  create mode 100644 components/ln_at_cmd/base/ln_at_cmd_base_plus.c
  create mode 100644 components/ln_at_cmd/base/ln_at_cmd_base_plus.h
  create mode 100644 components/ln_at_cmd/http/ln_at_http.c
@@ -440,7 +440,7 @@ Subject: [PATCH] 1.add at-bin.patch
  rename project/{combo_mcu_basic_example => combo_mcu_at_example}/app/main.c (91%)
  create mode 100644 project/combo_mcu_at_example/app/sys_driver_port.c
  create mode 100644 project/combo_mcu_at_example/app/sys_driver_port.h
- rename project/{combo_mcu_basic_example => combo_mcu_at_example}/app/usr_app.c (65%)
+ rename project/{combo_mcu_basic_example => combo_mcu_at_example}/app/usr_app.c (53%)
  rename project/{ble_mcu_data_trans => combo_mcu_at_example}/app/usr_app.h (100%)
  rename project/{combo_mcu_basic_example => combo_mcu_at_example}/app/usr_ble_app.c (99%)
  rename project/{ble_mcu_data_trans => combo_mcu_at_example}/app/usr_ble_app.h (100%)
@@ -8278,19 +8278,28 @@ index 0bb8ff1..a291798 100644
      if (NVDS_ERR_OK != ln_nvds_get_tx_power_comp(&rd_val1)) {
          return;
 diff --git a/components/wifi/wifi_manager/wifi_manager.c b/components/wifi/wifi_manager/wifi_manager.c
-index d16ac9c..7628968 100644
+index be85f8a..7628968 100644
 --- a/components/wifi/wifi_manager/wifi_manager.c
 +++ b/components/wifi/wifi_manager/wifi_manager.c
-@@ -5,6 +5,8 @@
+@@ -5,7 +5,8 @@
  #include "utils/debug/log.h"
  #include "utils/ln_list.h"
  
+-#include "usr_app.h"
 +#include "ln_at.h"
 +
  
  typedef struct {
      ln_list_t       list;
-@@ -218,6 +220,7 @@ static void sta_connected(void)
+@@ -19,7 +20,6 @@ typedef struct {
+ static wifi_mgr_event_cb_t event_cb[WIFI_MGR_EVENT_MAX] = {NULL};
+ static ap_info_list_ctrl_t ap_info_list_ctrl = {0,};
+ 
+-static app_sta_scan_data_t *g_ap_data = NULL;
+ 
+ __STATIC_INLINE__ int ap_info_list_init(void)
+ {
+@@ -220,6 +220,7 @@ static void sta_connected(void)
      wifi_manager_cleanup_scan_results();
  }
  
@@ -8298,7 +8307,181 @@ index d16ac9c..7628968 100644
  static void sta_disconnected(void)
  {
      LOG(LOG_LVL_INFO, "STA disconnected to target AP!\r\n");
-@@ -253,6 +256,8 @@ static void softap_associated(const uint8_t *mac_addr)
+@@ -231,173 +232,8 @@ static void sta_disconnected(void)
+     }
+ }
+ 
+-//list init
+-static app_sta_scan_data_t *init_list(void)
+-{
+-    app_sta_scan_data_t *p = (app_sta_scan_data_t *)OS_Malloc(sizeof(app_sta_scan_data_t));
+-    p->next = NULL;
+-    return p;
+-}
+-
+-//list delete
+-static void deinit_list(app_sta_scan_data_t *list)
+-{
+-    while(list != NULL)
+-    {
+-        OS_Free(list);
+-        list = list->next;
+-    }
+-    list = NULL;
+-}
+-
+-//insert list
+-static app_sta_scan_data_t *insert_list(app_sta_scan_data_t *list, void *data)
+-{
+-    app_sta_scan_data_t *p = OS_Malloc(sizeof(app_sta_scan_data_t));
+-
+-    memcpy(&p->data, (ap_info_t *)data, sizeof(ap_info_t));
+-    p->next = list->next;
+-    list->next = p;
+-    return list;
+-}
+-
+ static void sta_scan_complete(void)
+ {
+-    ln_list_t *list;
+-    uint8_t node_count = 0;
+-    ap_info_node_t *pnode;
+-    app_sta_scan_cfg_t *cfg = &g_sta_scan_cfg;
+-    uint8_t channel_num = cfg->channel_num;
+-    if(g_ap_data != NULL && cfg->data_fetech == 0)
+-    {
+-        deinit_list(g_ap_data);
+-    }
+-    wifi_manager_ap_list_update_enable(LN_FALSE);
+-    wifi_manager_get_ap_list(&list, &node_count);
+-    // 2.print all ap info in the list.
+-    if(!cfg->data_fetech)
+-    {
+-        cfg->data_fetech = 1;
+-        g_ap_data = init_list();
+-
+-        LN_LIST_FOR_EACH_ENTRY(pnode, ap_info_node_t, list,list)
+-        {
+-            uint8_t * mac = (uint8_t*)pnode->info.bssid;
+-            ap_info_t *ap_info = &pnode->info;
+-            switch(cfg->filter_mask)
+-            {
+-                //all list
+-                case 0x00:
+-                {
+-                    insert_list(g_ap_data, (void *)&pnode->info);
+-                }break;
+-                //channel
+-                case 0x01:
+-                {
+-                    for(uint8_t ch = 1; ch < cfg->channel_num; ch ++)
+-                    {
+-                        if(pnode->info.channel == cfg->channels[ch])
+-                            insert_list(g_ap_data, (void *)&pnode->info);
+-                    }
+-                }
+-                //bssid
+-                case 0x02:
+-                {
+-                    if(pnode->info.bssid[0] == cfg->bssid[1] && \
+-                       pnode->info.bssid[1] == cfg->bssid[2] && \
+-                       pnode->info.bssid[2] == cfg->bssid[3] && \
+-                       pnode->info.bssid[3] == cfg->bssid[4] && \
+-                       pnode->info.bssid[4] == cfg->bssid[5] && \
+-                       pnode->info.bssid[5] == cfg->bssid[6] \
+-                      )
+-                    {
+-                        insert_list(g_ap_data, (void *)&pnode->info);
+-                    }
+-                }break;
+-                //channel & bssid
+-                case 0x03:
+-                {
+-                    for(uint8_t ch = 1; ch < cfg->channel_num; ch ++)
+-                    {
+-                        if(pnode->info.channel == cfg->channels[ch])
+-                        {
+-                            if(pnode->info.bssid[0] == cfg->bssid[1] && \
+-                               pnode->info.bssid[1] == cfg->bssid[2] && \
+-                               pnode->info.bssid[2] == cfg->bssid[3] && \
+-                               pnode->info.bssid[3] == cfg->bssid[4] && \
+-                               pnode->info.bssid[4] == cfg->bssid[5] && \
+-                               pnode->info.bssid[5] == cfg->bssid[6] \
+-                              )
+-                            {
+-                                insert_list(g_ap_data, (void *)&pnode->info);
+-                            }
+-                            
+-                        }
+-                    }
+-                }break;
+-                //ssid
+-                case 0x04:
+-                {
+-                    if(!strcmp(cfg->ssid + 1, pnode->info.ssid))
+-                        insert_list(g_ap_data, (void *)&pnode->info);
+-                }break;
+-                //ssid & channel
+-                case 0x05:
+-                {
+-                    for(uint8_t ch = 1; ch < cfg->channel_num; ch ++)
+-                    {
+-                        if(pnode->info.channel == cfg->channels[ch])
+-                        {
+-                            if(!strcmp(cfg->ssid + 1, pnode->info.ssid))
+-                                insert_list(g_ap_data, (void *)&pnode->info);
+-                        }
+-                    }
+-                }break;
+-                //ssid & bssid
+-                case 0x06:
+-                {
+-                    if(pnode->info.bssid[0] == cfg->bssid[1] && \
+-                       pnode->info.bssid[1] == cfg->bssid[2] && \
+-                       pnode->info.bssid[2] == cfg->bssid[3] && \
+-                       pnode->info.bssid[3] == cfg->bssid[4] && \
+-                       pnode->info.bssid[4] == cfg->bssid[5] && \
+-                       pnode->info.bssid[5] == cfg->bssid[6] && (!strcmp(cfg->ssid + 1, pnode->info.ssid))\
+-                      )
+-                    {
+-                        insert_list(g_ap_data, (void *)&pnode->info);
+-                    }
+-                    
+-                }break;
+-                //ssid & bssid & channel
+-                case 0x07:
+-                {
+-                    for(uint8_t ch = 1; ch < cfg->channel_num; ch ++)
+-                    {
+-                        if(pnode->info.channel == cfg->channels[ch])
+-                        {
+-                            if(pnode->info.bssid[0] == cfg->bssid[1] && \
+-                               pnode->info.bssid[1] == cfg->bssid[2] && \
+-                               pnode->info.bssid[2] == cfg->bssid[3] && \
+-                               pnode->info.bssid[3] == cfg->bssid[4] && \
+-                               pnode->info.bssid[4] == cfg->bssid[5] && \
+-                               pnode->info.bssid[5] == cfg->bssid[6] && (!strcmp(cfg->ssid + 1, pnode->info.ssid))\
+-                              )
+-                            {
+-                                insert_list(g_ap_data, (void *)&pnode->info);
+-                            }
+-                        }
+-                    }
+-                }break;
+-                //default
+-                default:
+-                    break;
+-            }
+-        }
+-    }
+-    cfg->data = g_ap_data;
+-
+-    wifi_manager_ap_list_update_enable(LN_TRUE);
+-    
+     if (event_cb[WIFI_MGR_EVENT_STA_SCAN_COMPLETE]) {
+         event_cb[WIFI_MGR_EVENT_STA_SCAN_COMPLETE](NULL);
+     }
+@@ -420,6 +256,8 @@ static void softap_associated(const uint8_t *mac_addr)
  {
      uint8_t * mac = (uint8_t *)mac_addr;
      LOG(LOG_LVL_INFO, "[%02X:%02X:%02X:%02X:%02X:%02X] connected to softAP\r\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -8307,7 +8490,7 @@ index d16ac9c..7628968 100644
      //TODO: update sta list
      
      if (event_cb[WIFI_MGR_EVENT_SOFTAP_ASSOCIATED]) {
-@@ -264,6 +269,9 @@ static void softap_disassociated(const uint8_t *mac_addr)
+@@ -431,6 +269,9 @@ static void softap_disassociated(const uint8_t *mac_addr)
  {
      uint8_t * mac = (uint8_t *)mac_addr;
      LOG(LOG_LVL_INFO, "[%02X:%02X:%02X:%02X:%02X:%02X] disconnected to softAP\r\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
@@ -40409,10 +40592,10 @@ index 0000000..396944a
 +#endif
 +
 diff --git a/project/combo_mcu_basic_example/app/usr_app.c b/project/combo_mcu_at_example/app/usr_app.c
-similarity index 65%
+similarity index 53%
 rename from project/combo_mcu_basic_example/app/usr_app.c
 rename to project/combo_mcu_at_example/app/usr_app.c
-index 85ce37a..c631afb 100644
+index 6aa832c..c631afb 100644
 --- a/project/combo_mcu_basic_example/app/usr_app.c
 +++ b/project/combo_mcu_at_example/app/usr_app.c
 @@ -25,8 +25,8 @@
@@ -40426,13 +40609,16 @@ index 85ce37a..c631afb 100644
  
  static OS_Thread_t g_usr_app_thread;
  #define USR_APP_TASK_STACK_SIZE   6*256 //Byte
-@@ -40,27 +40,14 @@ static OS_Thread_t g_temp_cal_thread;
+@@ -40,30 +40,14 @@ static OS_Thread_t g_temp_cal_thread;
  
  /* declaration */
  static void wifi_init_ap(void);
 -static void wifi_init_sta(void);
  static void usr_app_task_entry(void *params);
  static void temp_cal_app_task_entry(void *params);
+-
+-app_sta_scan_cfg_t g_sta_scan_cfg = {0};
+-static ap_info_t *g_sc_data = NULL;
 +void ln_set_wifi_mode_from_at(wifi_mode_t _mode);
  
  static uint8_t mac_addr[6]        = {0x00, 0x50, 0xC2, 0x5E, 0xAA, 0xDA};
@@ -40455,7 +40641,7 @@ index 85ce37a..c631afb 100644
  wifi_softap_cfg_t ap_cfg = {
      .ssid            = "LN_AP_8899",
      .pwd             = "12345678",
-@@ -74,75 +61,6 @@ wifi_softap_cfg_t ap_cfg = {
+@@ -77,136 +61,6 @@ wifi_softap_cfg_t ap_cfg = {
      }
  };
  
@@ -40485,6 +40671,67 @@ index 85ce37a..c631afb 100644
 -
 -    wifi_manager_ap_list_update_enable(LN_TRUE);
 -}
+-
+-/*
+-* eg. 该函数需要参数data需用app_sta_scan_data_t类型去强转
+-*     读取完一次数去后需将 g_sta_scan_cfg.data_fetech = 0;之后,才能进行下一轮读取.
+-*     
+-*      static void sta_scan_cb(void *arg)
+-*      {
+-*        app_sta_scan_cfg_t *cfg = &g_sta_scan_cfg;
+-*        while(cfg->data->next != NULL)
+-*        {
+-*           LOG(LOG_LVL_WARN, "ap info : ssid = %s\r\n", cfg->data->next->data.ssid);
+-*            cfg->data = cfg->data->next;
+-*        }
+-*        cfg->data_fetech = 0;
+-*      }
+-*/
+-int wifi_mgmr_scan_adv(void *data, void (*cb)(void *arg), uint16_t *channels, uint16_t channel_num, uint8_t *bssid, char *ssid, uint8_t scan_mode, uint32_t duration_scan)
+-{
+-    app_sta_scan_cfg_t *cfg = &g_sta_scan_cfg;
+-    wifi_scan_cfg_t sc_cfg = {0};
+-    uint8_t i = 0;
+-    scan_cfg.channel = 0;
+-    scan_cfg.scan_time = 20;
+-    scan_cfg.scan_type = scan_mode;
+-    
+-    memset(cfg, 0, sizeof(app_sta_scan_cfg_t));
+-    cfg->channel_num = channel_num;
+-    cfg->scan_mode = scan_mode;
+-    cfg->duration_scan = duration_scan;
+-
+-    if(channel_num)
+-    {
+-        cfg->channels[0] = channel_num;
+-        memcpy(&cfg->channels[1], channels, sizeof(uint16_t) * channel_num);
+-        cfg->filter_mask |= (1 << 0);
+-    }
+-    if(bssid != NULL)
+-    {
+-        cfg->bssid[0] = 0x01;
+-        memcpy(&cfg->bssid[1], bssid, 6);
+-        cfg->filter_mask |= (1 << 1);
+-    }
+-    if(ssid != NULL)
+-    {
+-        cfg->ssid[0] = strlen(ssid);
+-        memcpy(cfg->ssid + 1, ssid, strlen(ssid));
+-        cfg->filter_mask |= (1 << 2);
+-    }
+-    data = (void *)cfg->data;
+-    //if sta is scanning
+-    wifi_sta_status_t status;
+-    wifi_get_sta_status(&status);
+-    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, cb);
+-    if(WIFI_STA_STATUS_SCANING != status)
+-    {
+-        wifi_sta_scan(&sc_cfg);
+-    }
+-    
+-    return 0;
+-}
+-
 -
 -static void wifi_init_sta(void)
 -{
@@ -40531,7 +40778,7 @@ index 85ce37a..c631afb 100644
  static void ap_startup_cb(void * arg)
  {
      netdev_set_state(NETIF_IDX_AP, NETDEV_UP);
-@@ -152,6 +70,12 @@ static void wifi_init_ap(void)
+@@ -216,6 +70,12 @@ static void wifi_init_ap(void)
  {
      tcpip_ip_info_t  ip_info;
      server_config_t  server_config;
@@ -40544,7 +40791,7 @@ index 85ce37a..c631afb 100644
  
      ip_info.ip.addr      = ipaddr_addr((const char *)"192.168.4.1");
      ip_info.gw.addr      = ipaddr_addr((const char *)"192.168.4.1");
-@@ -172,6 +96,7 @@ static void wifi_init_ap(void)
+@@ -236,6 +96,7 @@ static void wifi_init_ap(void)
      netdev_set_active(NETIF_IDX_AP);
      wifi_manager_reg_event_callback(WIFI_MGR_EVENT_SOFTAP_STARTUP, &ap_startup_cb);
  
@@ -40552,7 +40799,7 @@ index 85ce37a..c631afb 100644
      sysparam_softap_mac_update((const uint8_t *)mac_addr);
  
      ap_cfg.ext_cfg.psk_value = NULL;
-@@ -191,25 +116,62 @@ static void wifi_init_ap(void)
+@@ -255,25 +116,62 @@ static void wifi_init_ap(void)
      }
  }
  
@@ -40574,14 +40821,11 @@ index 85ce37a..c631afb 100644
 -    wifi_init_sta();
 -    // wifi_init_ap();
 -
--
--    while (!netdev_got_ip()) {
--        OS_MsDelay(1000);
 +    if (SYSPARAM_ERR_NONE != sysparam_poweron_wifi_mode_get(&mode))
 +    {
 +		//default
 +		Log_e("sysparam_poweron_wifi_mode_get fail!!!");
-     }
++    }
 +	ln_set_wifi_mode_from_at(mode);
 +	
 +	if (mode == WIFI_MODE_AP)
@@ -40613,7 +40857,10 @@ index 85ce37a..c631afb 100644
 +	{
 +		Log_e("unsupport mode: %d", mode);
 +	}
-+
+ 
+-    while (!netdev_got_ip()) {
+-        OS_MsDelay(1000);
+-    }
      while(1)
      {
 -        OS_MsDelay(1000);
@@ -40624,7 +40871,7 @@ index 85ce37a..c631afb 100644
      }
  }
  
-@@ -253,6 +215,8 @@ static void temp_cal_app_task_entry(void *params)
+@@ -317,6 +215,8 @@ static void temp_cal_app_task_entry(void *params)
  
  void creat_usr_app_task(void)
  {
@@ -49803,10 +50050,10 @@ index 0000000..fd3ba30
 +#endif /* _LN_TRANSPORT_UTILS_H_ */
 diff --git a/project/combo_mcu_basic_example/app/usr_app.h b/project/combo_mcu_basic_example/app/usr_app.h
 deleted file mode 100644
-index a872e5f..0000000
+index 9e73ffe..0000000
 --- a/project/combo_mcu_basic_example/app/usr_app.h
 +++ /dev/null
-@@ -1,20 +0,0 @@
+@@ -1,45 +0,0 @@
 -#ifndef __USR_APP_H__
 -#define __USR_APP_H__
 -
@@ -49817,8 +50064,33 @@ index a872e5f..0000000
 -extern "C" {
 -#endif
 -
+-#include "wifi.h"
+-
+-typedef struct Link
+-{
+-    ap_info_t data;
+-    struct Link *next;
+-}app_sta_scan_data_t;
+-
+-typedef struct
+-{
+-    uint8_t data_fetech;
+-    uint8_t channel_num;
+-    uint16_t channels[14];
+-    uint8_t bssid[7];
+-    char ssid[65];
+-    uint8_t scan_mode;
+-    uint32_t duration_scan;
+-    uint8_t filter_mask;
+-    app_sta_scan_data_t *data;
+-}app_sta_scan_cfg_t;
+-
+-extern app_sta_scan_cfg_t g_sta_scan_cfg;
 -
 -void creat_usr_app_task(void);
+-int wifi_mgmr_scan_adv(void *data, void (*cb)(void *arg), uint16_t *channels, uint16_t channel_num, uint8_t bssid[6], char *ssid, uint8_t scan_mode, uint32_t duration_scan);
+-
+-
 -
 -#ifdef __cplusplus
 -}
@@ -50972,10 +51244,10 @@ index 5d2c426..0000000
 -WrOverrideAddr = 0xFFFFFFFF
 diff --git a/project/combo_mcu_basic_example/keil_ln882h_rel/firmware_XIP.uvoptx b/project/combo_mcu_basic_example/keil_ln882h_rel/firmware_XIP.uvoptx
 deleted file mode 100644
-index 22d7c6e..0000000
+index 38ff04b..0000000
 --- a/project/combo_mcu_basic_example/keil_ln882h_rel/firmware_XIP.uvoptx
 +++ /dev/null
-@@ -1,2214 +0,0 @@
+@@ -1,2335 +0,0 @@
 -<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 -<ProjectOpt xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_optx.xsd">
 -
@@ -51097,6 +51369,11 @@ index 22d7c6e..0000000
 -      <TargetDriverDllRegistry>
 -        <SetRegEntry>
 -          <Number>0</Number>
+-          <Key>DLGUARM</Key>
+-          <Name>d</Name>
+-        </SetRegEntry>
+-        <SetRegEntry>
+-          <Number>0</Number>
 -          <Key>UL2CM3</Key>
 -          <Name>UL2CM3(-S0 -C0 -P0 -FD20000000 -FC1000)</Name>
 -        </SetRegEntry>
@@ -51121,56 +51398,7 @@ index 22d7c6e..0000000
 -          <Name></Name>
 -        </SetRegEntry>
 -      </TargetDriverDllRegistry>
--      <Breakpoint>
--        <Bp>
--          <Number>0</Number>
--          <Type>0</Type>
--          <LineNumber>372</LineNumber>
--          <EnabledFlag>1</EnabledFlag>
--          <Address>269025854</Address>
--          <ByteObject>0</ByteObject>
--          <HtxType>0</HtxType>
--          <ManyObjects>0</ManyObjects>
--          <SizeOfObject>0</SizeOfObject>
--          <BreakByAccess>0</BreakByAccess>
--          <BreakIfRCount>1</BreakIfRCount>
--          <Filename>F:\ART2000-LN881x-LN882x\ln862x\ln882h-20211019-develop\components\wifi\wifi_mac\Edge\TEMP_CAL\temp_cal.c</Filename>
--          <ExecCommand></ExecCommand>
--          <Expression>\\firmware_XIP\../../../components/wifi/wifi_mac/Edge/TEMP_CAL/temp_cal.c\372</Expression>
--        </Bp>
--        <Bp>
--          <Number>1</Number>
--          <Type>0</Type>
--          <LineNumber>489</LineNumber>
--          <EnabledFlag>1</EnabledFlag>
--          <Address>268500622</Address>
--          <ByteObject>0</ByteObject>
--          <HtxType>0</HtxType>
--          <ManyObjects>0</ManyObjects>
--          <SizeOfObject>0</SizeOfObject>
--          <BreakByAccess>0</BreakByAccess>
--          <BreakIfRCount>1</BreakIfRCount>
--          <Filename>..\bsp\serial_hw.c</Filename>
--          <ExecCommand></ExecCommand>
--          <Expression>\\firmware_XIP\../bsp/serial_hw.c\489</Expression>
--        </Bp>
--        <Bp>
--          <Number>2</Number>
--          <Type>0</Type>
--          <LineNumber>229</LineNumber>
--          <EnabledFlag>1</EnabledFlag>
--          <Address>269156528</Address>
--          <ByteObject>0</ByteObject>
--          <HtxType>0</HtxType>
--          <ManyObjects>0</ManyObjects>
--          <SizeOfObject>0</SizeOfObject>
--          <BreakByAccess>0</BreakByAccess>
--          <BreakIfRCount>1</BreakIfRCount>
--          <Filename>..\app\usr_app.c</Filename>
--          <ExecCommand></ExecCommand>
--          <Expression>\\firmware_XIP\../app/usr_app.c\229</Expression>
--        </Bp>
--      </Breakpoint>
+-      <Breakpoint/>
 -      <WatchWindow1>
 -        <Ww>
 -          <count>0</count>
@@ -51195,17 +51423,22 @@ index 22d7c6e..0000000
 -        <Ww>
 -          <count>4</count>
 -          <WinNumber>1</WinNumber>
--          <ItemText>ke_env.queue_sent</ItemText>
+-          <ItemText>x_flag</ItemText>
 -        </Ww>
 -        <Ww>
 -          <count>5</count>
 -          <WinNumber>1</WinNumber>
--          <ItemText>x_flag</ItemText>
+-          <ItemText>cch_tt</ItemText>
 -        </Ww>
 -        <Ww>
 -          <count>6</count>
 -          <WinNumber>1</WinNumber>
--          <ItemText>cch_tt</ItemText>
+-          <ItemText>cfg</ItemText>
+-        </Ww>
+-        <Ww>
+-          <count>7</count>
+-          <WinNumber>1</WinNumber>
+-          <ItemText>g_ap_data</ItemText>
 -        </Ww>
 -      </WatchWindow1>
 -      <MemoryWindow1>
@@ -51246,7 +51479,7 @@ index 22d7c6e..0000000
 -      <DebugFlag>
 -        <trace>0</trace>
 -        <periodic>1</periodic>
--        <aLwin>0</aLwin>
+-        <aLwin>1</aLwin>
 -        <aCover>0</aCover>
 -        <aSer1>0</aSer1>
 -        <aSer2>0</aSer2>
@@ -51759,17 +51992,29 @@ index 22d7c6e..0000000
 -      <RteFlg>0</RteFlg>
 -      <bShared>0</bShared>
 -    </File>
+-    <File>
+-      <GroupNumber>4</GroupNumber>
+-      <FileNumber>38</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\utils\linux_compat\linux_compat_time.c</PathWithFileName>
+-      <FilenameWithoutPath>linux_compat_time.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
 -  </Group>
 -
 -  <Group>
 -    <GroupName>app</GroupName>
--    <tvExp>0</tvExp>
+-    <tvExp>1</tvExp>
 -    <tvExpOptDlg>0</tvExpOptDlg>
 -    <cbSel>0</cbSel>
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>5</GroupNumber>
--      <FileNumber>38</FileNumber>
+-      <FileNumber>39</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51781,13 +52026,25 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>5</GroupNumber>
--      <FileNumber>39</FileNumber>
+-      <FileNumber>40</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
 -      <bDave2>0</bDave2>
 -      <PathWithFileName>..\app\usr_app.c</PathWithFileName>
 -      <FilenameWithoutPath>usr_app.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>5</GroupNumber>
+-      <FileNumber>41</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\app\usr_ble_app.c</PathWithFileName>
+-      <FilenameWithoutPath>usr_ble_app.c</FilenameWithoutPath>
 -      <RteFlg>0</RteFlg>
 -      <bShared>0</bShared>
 -    </File>
@@ -51801,7 +52058,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>40</FileNumber>
+-      <FileNumber>42</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51813,7 +52070,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>41</FileNumber>
+-      <FileNumber>43</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51825,7 +52082,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>42</FileNumber>
+-      <FileNumber>44</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51837,7 +52094,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>43</FileNumber>
+-      <FileNumber>45</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51849,7 +52106,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>44</FileNumber>
+-      <FileNumber>46</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51861,7 +52118,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>45</FileNumber>
+-      <FileNumber>47</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51873,7 +52130,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>46</FileNumber>
+-      <FileNumber>48</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51885,7 +52142,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>47</FileNumber>
+-      <FileNumber>49</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51897,7 +52154,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>48</FileNumber>
+-      <FileNumber>50</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51909,13 +52166,25 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>6</GroupNumber>
--      <FileNumber>49</FileNumber>
+-      <FileNumber>51</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
 -      <bDave2>0</bDave2>
 -      <PathWithFileName>..\..\..\components\ln_at_cmd\wifi\ln_at_cmd_wifi.c</PathWithFileName>
 -      <FilenameWithoutPath>ln_at_cmd_wifi.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>6</GroupNumber>
+-      <FileNumber>52</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ln_at_cmd\bluetooth\ln_at_cmd_bt.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_at_cmd_bt.c</FilenameWithoutPath>
 -      <RteFlg>0</RteFlg>
 -      <bShared>0</bShared>
 -    </File>
@@ -51929,7 +52198,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>7</GroupNumber>
--      <FileNumber>50</FileNumber>
+-      <FileNumber>53</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51941,7 +52210,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>7</GroupNumber>
--      <FileNumber>51</FileNumber>
+-      <FileNumber>54</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51953,7 +52222,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>7</GroupNumber>
--      <FileNumber>52</FileNumber>
+-      <FileNumber>55</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51965,7 +52234,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>7</GroupNumber>
--      <FileNumber>53</FileNumber>
+-      <FileNumber>56</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51977,7 +52246,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>7</GroupNumber>
--      <FileNumber>54</FileNumber>
+-      <FileNumber>57</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -51989,7 +52258,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>7</GroupNumber>
--      <FileNumber>55</FileNumber>
+-      <FileNumber>58</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52001,7 +52270,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>7</GroupNumber>
--      <FileNumber>56</FileNumber>
+-      <FileNumber>59</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52013,7 +52282,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>7</GroupNumber>
--      <FileNumber>57</FileNumber>
+-      <FileNumber>60</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52033,7 +52302,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>58</FileNumber>
+-      <FileNumber>61</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52045,7 +52314,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>59</FileNumber>
+-      <FileNumber>62</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52057,7 +52326,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>60</FileNumber>
+-      <FileNumber>63</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52069,7 +52338,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>61</FileNumber>
+-      <FileNumber>64</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52081,7 +52350,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>62</FileNumber>
+-      <FileNumber>65</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52093,7 +52362,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>63</FileNumber>
+-      <FileNumber>66</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52105,7 +52374,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>64</FileNumber>
+-      <FileNumber>67</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52117,7 +52386,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>65</FileNumber>
+-      <FileNumber>68</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52129,7 +52398,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>8</GroupNumber>
--      <FileNumber>66</FileNumber>
+-      <FileNumber>69</FileNumber>
 -      <FileType>5</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52149,7 +52418,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>9</GroupNumber>
--      <FileNumber>67</FileNumber>
+-      <FileNumber>70</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52169,7 +52438,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>10</GroupNumber>
--      <FileNumber>68</FileNumber>
+-      <FileNumber>71</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52181,7 +52450,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>10</GroupNumber>
--      <FileNumber>69</FileNumber>
+-      <FileNumber>72</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52193,7 +52462,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>10</GroupNumber>
--      <FileNumber>70</FileNumber>
+-      <FileNumber>73</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52205,7 +52474,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>10</GroupNumber>
--      <FileNumber>71</FileNumber>
+-      <FileNumber>74</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52217,7 +52486,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>10</GroupNumber>
--      <FileNumber>72</FileNumber>
+-      <FileNumber>75</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52237,7 +52506,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>11</GroupNumber>
--      <FileNumber>73</FileNumber>
+-      <FileNumber>76</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52249,7 +52518,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>11</GroupNumber>
--      <FileNumber>74</FileNumber>
+-      <FileNumber>77</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52261,7 +52530,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>11</GroupNumber>
--      <FileNumber>75</FileNumber>
+-      <FileNumber>78</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52273,7 +52542,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>11</GroupNumber>
--      <FileNumber>76</FileNumber>
+-      <FileNumber>79</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52293,7 +52562,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>12</GroupNumber>
--      <FileNumber>77</FileNumber>
+-      <FileNumber>80</FileNumber>
 -      <FileType>4</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52305,7 +52574,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>12</GroupNumber>
--      <FileNumber>78</FileNumber>
+-      <FileNumber>81</FileNumber>
 -      <FileType>4</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52317,7 +52586,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>12</GroupNumber>
--      <FileNumber>79</FileNumber>
+-      <FileNumber>82</FileNumber>
 -      <FileType>4</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52331,13 +52600,13 @@ index 22d7c6e..0000000
 -
 -  <Group>
 -    <GroupName>wifi_manager</GroupName>
--    <tvExp>0</tvExp>
+-    <tvExp>1</tvExp>
 -    <tvExpOptDlg>0</tvExpOptDlg>
 -    <cbSel>0</cbSel>
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>13</GroupNumber>
--      <FileNumber>80</FileNumber>
+-      <FileNumber>83</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52357,7 +52626,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>14</GroupNumber>
--      <FileNumber>81</FileNumber>
+-      <FileNumber>84</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52369,7 +52638,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>14</GroupNumber>
--      <FileNumber>82</FileNumber>
+-      <FileNumber>85</FileNumber>
 -      <FileType>5</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52381,7 +52650,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>14</GroupNumber>
--      <FileNumber>83</FileNumber>
+-      <FileNumber>86</FileNumber>
 -      <FileType>5</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52401,7 +52670,7 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>15</GroupNumber>
--      <FileNumber>84</FileNumber>
+-      <FileNumber>87</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52413,7 +52682,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>15</GroupNumber>
--      <FileNumber>85</FileNumber>
+-      <FileNumber>88</FileNumber>
 -      <FileType>5</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52425,7 +52694,7 @@ index 22d7c6e..0000000
 -    </File>
 -    <File>
 -      <GroupNumber>15</GroupNumber>
--      <FileNumber>86</FileNumber>
+-      <FileNumber>89</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52445,81 +52714,205 @@ index 22d7c6e..0000000
 -    <RteFlg>0</RteFlg>
 -    <File>
 -      <GroupNumber>16</GroupNumber>
--      <FileNumber>87</FileNumber>
--      <FileType>1</FileType>
--      <tvExp>0</tvExp>
--      <tvExpOptDlg>0</tvExpOptDlg>
--      <bDave2>0</bDave2>
--      <PathWithFileName>..\app\ble_usr_app\usr_send_data.c</PathWithFileName>
--      <FilenameWithoutPath>usr_send_data.c</FilenameWithoutPath>
--      <RteFlg>0</RteFlg>
--      <bShared>0</bShared>
--    </File>
--    <File>
--      <GroupNumber>16</GroupNumber>
--      <FileNumber>88</FileNumber>
--      <FileType>1</FileType>
--      <tvExp>0</tvExp>
--      <tvExpOptDlg>0</tvExpOptDlg>
--      <bDave2>0</bDave2>
--      <PathWithFileName>..\app\ble_usr_app\app_callback\ln_gap_callback.c</PathWithFileName>
--      <FilenameWithoutPath>ln_gap_callback.c</FilenameWithoutPath>
--      <RteFlg>0</RteFlg>
--      <bShared>0</bShared>
--    </File>
--    <File>
--      <GroupNumber>16</GroupNumber>
--      <FileNumber>89</FileNumber>
--      <FileType>1</FileType>
--      <tvExp>0</tvExp>
--      <tvExpOptDlg>0</tvExpOptDlg>
--      <bDave2>0</bDave2>
--      <PathWithFileName>..\app\ble_usr_app\app_callback\ln_gatt_callback.c</PathWithFileName>
--      <FilenameWithoutPath>ln_gatt_callback.c</FilenameWithoutPath>
--      <RteFlg>0</RteFlg>
--      <bShared>0</bShared>
--    </File>
--    <File>
--      <GroupNumber>16</GroupNumber>
 -      <FileNumber>90</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
 -      <bDave2>0</bDave2>
--      <PathWithFileName>..\app\ble_usr_app\usr_ble_app.c</PathWithFileName>
--      <FilenameWithoutPath>usr_ble_app.c</FilenameWithoutPath>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_connection_manager\ln_ble_connection_manager.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_connection_manager.c</FilenameWithoutPath>
 -      <RteFlg>0</RteFlg>
 -      <bShared>0</bShared>
 -    </File>
--  </Group>
--
--  <Group>
--    <GroupName>ble_api</GroupName>
--    <tvExp>0</tvExp>
--    <tvExpOptDlg>0</tvExpOptDlg>
--    <cbSel>0</cbSel>
--    <RteFlg>0</RteFlg>
 -    <File>
--      <GroupNumber>17</GroupNumber>
+-      <GroupNumber>16</GroupNumber>
 -      <FileNumber>91</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
 -      <bDave2>0</bDave2>
--      <PathWithFileName>..\..\..\components\ble\ble_api\gap_gatt\src\ln_app_gap.c</PathWithFileName>
--      <FilenameWithoutPath>ln_app_gap.c</FilenameWithoutPath>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_device_manager\ln_ble_device_manager.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_device_manager.c</FilenameWithoutPath>
 -      <RteFlg>0</RteFlg>
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>17</GroupNumber>
+-      <GroupNumber>16</GroupNumber>
 -      <FileNumber>92</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
 -      <bDave2>0</bDave2>
--      <PathWithFileName>..\..\..\components\ble\ble_api\gap_gatt\src\ln_app_gatt.c</PathWithFileName>
--      <FilenameWithoutPath>ln_app_gatt.c</FilenameWithoutPath>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gap\gap_advertising\ln_ble_advertising.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_advertising.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>93</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gap\gap_misc\ln_ble_gap.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_gap.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>94</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gap\gap_scan\ln_ble_scan.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_scan.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>95</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gatt\gatt_common\ln_ble_gatt.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_gatt.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>96</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_import\ln_ble_rw_app_task.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_rw_app_task.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>97</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_smp\ln_ble_smp.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_smp.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>98</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_store\ln_ble_app_kv.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_app_kv.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>99</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_test\ln_ble_test.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_test.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>100</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gatt\gatt_client\ln_ble_trans_client.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_trans_client.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>101</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gatt\gatt_server\ln_ble_trans_server.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_trans_server.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>102</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gatt\gatt_common\ln_ble_gatt_ind_handler.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_gatt_ind_handler.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>103</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gatt\gatt_client\ln_ble_battery_client.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_battery_client.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>104</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gatt\gatt_server\ln_ble_battery_server.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_battery_server.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>105</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_gap\gap_misc\ln_ble_gap_ind_handler.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_gap_ind_handler.c</FilenameWithoutPath>
+-      <RteFlg>0</RteFlg>
+-      <bShared>0</bShared>
+-    </File>
+-    <File>
+-      <GroupNumber>16</GroupNumber>
+-      <FileNumber>106</FileNumber>
+-      <FileType>1</FileType>
+-      <tvExp>0</tvExp>
+-      <tvExpOptDlg>0</tvExpOptDlg>
+-      <bDave2>0</bDave2>
+-      <PathWithFileName>..\..\..\components\ble\ble_app\ble_event\ln_ble_event_manager.c</PathWithFileName>
+-      <FilenameWithoutPath>ln_ble_event_manager.c</FilenameWithoutPath>
 -      <RteFlg>0</RteFlg>
 -      <bShared>0</bShared>
 -    </File>
@@ -52532,8 +52925,8 @@ index 22d7c6e..0000000
 -    <cbSel>0</cbSel>
 -    <RteFlg>0</RteFlg>
 -    <File>
--      <GroupNumber>18</GroupNumber>
--      <FileNumber>93</FileNumber>
+-      <GroupNumber>17</GroupNumber>
+-      <FileNumber>107</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52544,8 +52937,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>18</GroupNumber>
--      <FileNumber>94</FileNumber>
+-      <GroupNumber>17</GroupNumber>
+-      <FileNumber>108</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52564,8 +52957,8 @@ index 22d7c6e..0000000
 -    <cbSel>0</cbSel>
 -    <RteFlg>0</RteFlg>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>95</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>109</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52576,8 +52969,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>96</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>110</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52588,8 +52981,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>97</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>111</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52600,8 +52993,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>98</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>112</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52612,8 +53005,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>99</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>113</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52624,8 +53017,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>100</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>114</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52636,8 +53029,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>101</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>115</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52648,8 +53041,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>102</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>116</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52660,8 +53053,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>103</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>117</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52672,8 +53065,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>104</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>118</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52684,8 +53077,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>105</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>119</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52696,8 +53089,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>106</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>120</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52708,8 +53101,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>107</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>121</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52720,8 +53113,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>108</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>122</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52732,8 +53125,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>109</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>123</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52744,8 +53137,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>110</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>124</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52756,8 +53149,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>111</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>125</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52768,8 +53161,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>112</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>126</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52780,8 +53173,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>113</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>127</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52792,8 +53185,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>114</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>128</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52804,8 +53197,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>115</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>129</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52816,8 +53209,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>116</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>130</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52828,8 +53221,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>117</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>131</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52840,8 +53233,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>118</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>132</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52852,8 +53245,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>119</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>133</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52864,8 +53257,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>120</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>134</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52876,8 +53269,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>121</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>135</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52888,8 +53281,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>122</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>136</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52900,8 +53293,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>123</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>137</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52912,8 +53305,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>124</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>138</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52924,8 +53317,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>125</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>139</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52936,8 +53329,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>126</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>140</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52948,8 +53341,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>127</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>141</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52960,8 +53353,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>128</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>142</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52972,8 +53365,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>129</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>143</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52984,8 +53377,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>130</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>144</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -52996,8 +53389,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>19</GroupNumber>
--      <FileNumber>131</FileNumber>
+-      <GroupNumber>18</GroupNumber>
+-      <FileNumber>145</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53016,8 +53409,8 @@ index 22d7c6e..0000000
 -    <cbSel>0</cbSel>
 -    <RteFlg>0</RteFlg>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>132</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>146</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53028,8 +53421,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>133</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>147</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53040,8 +53433,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>134</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>148</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53052,8 +53445,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>135</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>149</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53064,8 +53457,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>136</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>150</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53076,8 +53469,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>137</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>151</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53088,8 +53481,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>138</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>152</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53100,8 +53493,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>139</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>153</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53112,8 +53505,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>20</GroupNumber>
--      <FileNumber>140</FileNumber>
+-      <GroupNumber>19</GroupNumber>
+-      <FileNumber>154</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53132,8 +53525,8 @@ index 22d7c6e..0000000
 -    <cbSel>0</cbSel>
 -    <RteFlg>0</RteFlg>
 -    <File>
--      <GroupNumber>21</GroupNumber>
--      <FileNumber>141</FileNumber>
+-      <GroupNumber>20</GroupNumber>
+-      <FileNumber>155</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53152,8 +53545,8 @@ index 22d7c6e..0000000
 -    <cbSel>0</cbSel>
 -    <RteFlg>0</RteFlg>
 -    <File>
--      <GroupNumber>22</GroupNumber>
--      <FileNumber>142</FileNumber>
+-      <GroupNumber>21</GroupNumber>
+-      <FileNumber>156</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53164,8 +53557,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>22</GroupNumber>
--      <FileNumber>143</FileNumber>
+-      <GroupNumber>21</GroupNumber>
+-      <FileNumber>157</FileNumber>
 -      <FileType>1</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53176,8 +53569,8 @@ index 22d7c6e..0000000
 -      <bShared>0</bShared>
 -    </File>
 -    <File>
--      <GroupNumber>22</GroupNumber>
--      <FileNumber>144</FileNumber>
+-      <GroupNumber>21</GroupNumber>
+-      <FileNumber>158</FileNumber>
 -      <FileType>5</FileType>
 -      <tvExp>0</tvExp>
 -      <tvExpOptDlg>0</tvExpOptDlg>
@@ -53192,10 +53585,10 @@ index 22d7c6e..0000000
 -</ProjectOpt>
 diff --git a/project/combo_mcu_basic_example/keil_ln882h_rel/firmware_XIP.uvprojx b/project/combo_mcu_basic_example/keil_ln882h_rel/firmware_XIP.uvprojx
 deleted file mode 100644
-index 875752e..0000000
+index 986c771..0000000
 --- a/project/combo_mcu_basic_example/keil_ln882h_rel/firmware_XIP.uvprojx
 +++ /dev/null
-@@ -1,1321 +0,0 @@
+@@ -1,1339 +0,0 @@
 -<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 -<Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="project_projx.xsd">
 -
@@ -53208,12 +53601,13 @@ index 875752e..0000000
 -      <TargetName>firmware_ln882h</TargetName>
 -      <ToolsetNumber>0x4</ToolsetNumber>
 -      <ToolsetName>ARM-ADS</ToolsetName>
--      <pCCUsed>5060061::V5.06 update 1 (build 61)::ARMCC</pCCUsed>
+-      <pCCUsed>5060960::V5.06 update 7 (build 960)::.\ARMCC</pCCUsed>
+-      <uAC6>0</uAC6>
 -      <TargetOption>
 -        <TargetCommonOption>
 -          <Device>ARMCM4_FP</Device>
 -          <Vendor>ARM</Vendor>
--          <PackID>ARM.CMSIS.4.5.0</PackID>
+-          <PackID>ARM.CMSIS.5.8.0</PackID>
 -          <PackURL>http://www.keil.com/pack/</PackURL>
 -          <Cpu>IROM(0x00000000,0x00040000) IRAM(0x20000000,0x00020000) CPUTYPE("Cortex-M4") FPU2 CLOCK(12000000) ESEL ELITTLE</Cpu>
 -          <FlashUtilSpec></FlashUtilSpec>
@@ -53381,6 +53775,8 @@ index 875752e..0000000
 -            <hadXRAM>0</hadXRAM>
 -            <uocXRam>0</uocXRam>
 -            <RvdsVP>2</RvdsVP>
+-            <RvdsMve>0</RvdsMve>
+-            <RvdsCdeCp>0</RvdsCdeCp>
 -            <hadIRAM2>0</hadIRAM2>
 -            <hadIROM2>0</hadIROM2>
 -            <StupSel>8</StupSel>
@@ -53521,11 +53917,15 @@ index 875752e..0000000
 -            <uThumb>0</uThumb>
 -            <uSurpInc>0</uSurpInc>
 -            <uC99>1</uC99>
+-            <uGnu>0</uGnu>
 -            <useXO>0</useXO>
 -            <v6Lang>1</v6Lang>
 -            <v6LangP>1</v6LangP>
 -            <vShortEn>1</vShortEn>
 -            <vShortWch>1</vShortWch>
+-            <v6Lto>0</v6Lto>
+-            <v6WtE>0</v6WtE>
+-            <v6Rtti>0</v6Rtti>
 -            <VariousControls>
 -              <MiscControls>--gnu</MiscControls>
 -              <Define>LN882H,ARM_MATH_CM4</Define>
@@ -53543,6 +53943,7 @@ index 875752e..0000000
 -            <NoWarn>0</NoWarn>
 -            <uSurpInc>0</uSurpInc>
 -            <useXO>0</useXO>
+-            <ClangAsOpt>1</ClangAsOpt>
 -            <VariousControls>
 -              <MiscControls></MiscControls>
 -              <Define></Define>
@@ -54360,11 +54761,15 @@ index 875752e..0000000
 -                    <uThumb>2</uThumb>
 -                    <uSurpInc>2</uSurpInc>
 -                    <uC99>2</uC99>
+-                    <uGnu>2</uGnu>
 -                    <useXO>2</useXO>
 -                    <v6Lang>0</v6Lang>
 -                    <v6LangP>0</v6LangP>
 -                    <vShortEn>2</vShortEn>
 -                    <vShortWch>2</vShortWch>
+-                    <v6Lto>2</v6Lto>
+-                    <v6WtE>2</v6WtE>
+-                    <v6Rtti>2</v6Rtti>
 -                    <VariousControls>
 -                      <MiscControls></MiscControls>
 -                      <Define></Define>
@@ -54515,6 +54920,12 @@ index 875752e..0000000
 -      </Groups>
 -    </Target>
 -  </Targets>
+-
+-  <RTE>
+-    <apis/>
+-    <components/>
+-    <files/>
+-  </RTE>
 -
 -</Project>
 diff --git a/project/combo_mcu_basic_example/startup/startup_ln882h.S b/project/combo_mcu_basic_example/startup/startup_ln882h.S

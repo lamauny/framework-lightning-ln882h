@@ -1,7 +1,7 @@
-From 3c9e46bdeb624b88bdc7bed8d23c6b8bf64faeb8 Mon Sep 17 00:00:00 2001
+From f27eee5e07da23bf2d9950f4b77b9f4d6be090ad Mon Sep 17 00:00:00 2001
 From: john_zhangsz <john.zhang@lightningsemi.com>
-Date: Fri, 9 Jun 2023 17:47:48 +0800
-Subject: [PATCH] 1.add otp.patch
+Date: Mon, 10 Jul 2023 17:18:32 +0800
+Subject: [PATCH] 1.add-otp
 
 ---
  components/fs/nvds/ln_nvds.c                  | 71 +++++++++++++++++--
@@ -172,19 +172,18 @@ index d11f98e..01993dd 100644
  }
  #endif
 diff --git a/project/combo_mcu_basic_example/app/usr_app.c b/project/combo_mcu_basic_example/app/usr_app.c
-index 85ce37a..3719180 100644
+index 6aa832c..cce7aff 100644
 --- a/project/combo_mcu_basic_example/app/usr_app.c
 +++ b/project/combo_mcu_basic_example/app/usr_app.c
-@@ -26,6 +26,8 @@
+@@ -26,6 +26,7 @@
  #include "usr_app.h"
  #include "usr_ble_app.h"
  
 +#include "ln_nvds.h"
-+
  
  
  static OS_Thread_t g_usr_app_thread;
-@@ -104,10 +106,18 @@ static void wifi_scan_complete_cb(void * arg)
+@@ -168,10 +169,18 @@ int wifi_mgmr_scan_adv(void *data, void (*cb)(void *arg), uint16_t *channels, ui
  static void wifi_init_sta(void)
  {
      // ln_generate_random_mac(mac_addr);
@@ -206,7 +205,15 @@ index 85ce37a..3719180 100644
      }
  
      if (mac_addr[0] == STA_MAC_ADDR0 &&
-@@ -152,6 +162,11 @@ static void wifi_init_ap(void)
+@@ -207,6 +216,7 @@ static void wifi_init_sta(void)
+     wifi_sta_connect(&connect, &scan_cfg);
+ }
+ 
++
+ static void ap_startup_cb(void * arg)
+ {
+     netdev_set_state(NETIF_IDX_AP, NETDEV_UP);
+@@ -216,6 +226,11 @@ static void wifi_init_ap(void)
  {
      tcpip_ip_info_t  ip_info;
      server_config_t  server_config;
