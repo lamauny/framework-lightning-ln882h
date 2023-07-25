@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-
+#include "ln_compiler.h"
 
 /*
  * DEFINES

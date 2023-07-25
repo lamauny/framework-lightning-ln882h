@@ -6,8 +6,6 @@
 #include "ble_qiot_log.h"
 
 #include "mac/ble/hl/api/gattm_task.h"
-#include "ble_api/gap_gatt/api/ln_app_gatt.h"
-#include "ble_api/gap_gatt/api/ln_app_gap.h"
 
 #include "freertos_common.h"
 #include "ble_arch/arch.h"
@@ -74,7 +72,7 @@ static const ln_attm_desc_t g_gap_service_atts[] = {
 ln_trans_svr_desc_t g_att_desc = {
     0
 };
-#elif
+#else
 static struct gattm_att_desc g_gap_service_atts[] = {
     [LLSYNC_DECL_CHAR_DEVICE_INFO] = {
         .uuid = { 0x03, 0x28 },
@@ -244,7 +242,7 @@ void ble_services_add(const qiot_service_init_s *p_service)
     }
     //set start handle
     _char_svc_handle_set(g_att_desc.start_handle);
-#elif
+#else
     int nb_att = sizeof(g_gap_service_atts)/sizeof(g_gap_service_atts[0]);
     struct ln_gattm_add_svc_req p_svc_desc;
     p_svc_desc.svc_desc.start_hdl = 0;

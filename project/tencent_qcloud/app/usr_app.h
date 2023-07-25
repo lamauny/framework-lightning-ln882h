@@ -16,6 +16,16 @@ extern "C" {
 #include "ln_ble_event_manager.h"
 #include "ln_ble_smp.h"
 #include "ln_ble_advertising.h"
+#include "ln_ble_rw_app_task.h"
+#include "ln_ble_gap.h"
+#include "ln_ble_gatt.h"
+#include "ln_ble_gap_ind_handler.h"
+#include "ln_ble_gatt_ind_handler.h"
+#include "ln_ble_trans_server.h"
+#include "ln_ble_app_err_code.h"
+#include "ln_ble_app_default_cfg.h"
+#include "ln_ble_app_defines.h"
+#include "gapm_task.h"
 
 void creat_usr_app_task(void);
 

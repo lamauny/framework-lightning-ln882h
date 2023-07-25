@@ -179,7 +179,7 @@ int start_device_btcomboconfig(void)
     ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_GATT_READ_REQ,  ln_ble_gatt_read_req_cb);
     ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_GATT_WRITE_REQ, ln_ble_gatt_write_req_cb);
 
-#elif
+#else
     // TODO other init
 
 extern void ble_app_init(void);
