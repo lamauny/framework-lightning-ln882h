@@ -25,6 +25,8 @@
 #include "qcloud_wifi_config_internal.h"
 
 #include "ble_qiot_export.h"
+#include "usr_app.h"
+
 
 #if WIFI_PROV_BT_COMBO_CONFIG_ENABLE
 
@@ -125,8 +127,59 @@ int _bt_combo_config_task_start(void *params)
     return 0;
 }
 
+#ifdef _FIMRWARE_SDK_V_1_8_
+static void ln_ble_connect_cb(void *arg)
+{
+    ble_gap_connect_cb();
+}
+
+static void ln_ble_disconnect_cb(void *arg)
+{
+    ble_gap_disconnect_cb();
+}
+
+static void ln_ble_gatt_write_req_cb(void *arg)
+{
+    ble_evt_gatt_write_req_t *p_gatt_write = (ble_evt_gatt_write_req_t *)arg;
+    ble_device_info_write_cb(p_gatt_write->value, p_gatt_write->length);
+}
+
+static void ln_ble_gatt_read_req_cb(void *arg)
+{
+    
+}
+
+#endif
+
 int start_device_btcomboconfig(void)
 {
+#ifdef _FIMRWARE_SDK_V_1_8_
+    //1.host init
+    ln_gap_app_init();
+    ln_gatt_app_init();
+    //2.app component init
+    ln_ble_conn_mgr_init();
+    ln_ble_evt_mgr_init();
+    ln_ble_smp_init();
+    //3.adv init
+    ln_ble_adv_mgr_init();
+    //4.server init
+    ln_ble_trans_svr_init();
+    //5.stack start
+    ln_rw_app_task_init();
+    ln_gap_reset();
+    
+    //6.service init
+    
+    //7.adv start
+
+    //8.callback regist
+    ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_CONNECTED,    ln_ble_connect_cb);
+    ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_DISCONNECTED, ln_ble_disconnect_cb);
+    ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_GATT_READ_REQ,  ln_ble_gatt_read_req_cb);
+    ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_GATT_WRITE_REQ, ln_ble_gatt_write_req_cb);
+
+#elif
     // TODO other init
 
 extern void ble_app_init(void);
@@ -136,6 +189,7 @@ ble_app_init();
     
     ble_qiot_advertising_start();
     return QCLOUD_RET_SUCCESS;
+#endif
 }
 
 int stop_device_btcomboconfig(void)

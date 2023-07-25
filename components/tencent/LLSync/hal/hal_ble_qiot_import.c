@@ -12,6 +12,7 @@
 #include "freertos_common.h"
 #include "ble_arch/arch.h"
 #include "hal/hal_flash.h"
+#include "usr_app.h"
 
 /**************************************************************************************/
 /*                            LLSync LN882H                                           */
@@ -34,6 +35,46 @@ extern uint8_t  adv_actv_idx;
 uint8_t  llsync_conid  = 0xFF;
 uint16_t llsync_mtu    = 23; // TODO: 128
 
+#ifdef _FIMRWARE_SDK_V_1_8_
+static const ln_attm_desc_t g_gap_service_atts[] = {
+    [LLSYNC_DECL_CHAR_DEVICE_INFO] = {
+        .uuid = { 0x03, 0x28 },
+        .perm = PERM_MASK_RD,
+        .max_size = 0,
+        .ext_perm = (0 <<  PERM_POS_UUID_LEN),
+    },
+    [LLSYNC_CHAR_VAL_DEVICE_INFO] = {
+        .uuid = { IOT_BLE_UUID_DEVICE_INFO & 0xFF, (IOT_BLE_UUID_DEVICE_INFO >> 8) & 0xFF},  //0xFF, 0xE1
+        .perm = PERM_MASK_WRITE_REQ,
+        .max_size = BLE_QIOT_EVENT_MAX_SIZE, // TODO:???
+        .ext_perm = (2 << PERM_POS_UUID_LEN),
+    },
+
+    [LLSYNC_DECL_CHAR_EVENT] = {
+        .uuid = { 0x03, 0x28 },
+        .perm = PERM_MASK_RD,
+        .max_size = 0,
+        .ext_perm =  (0 << PERM_POS_UUID_LEN),
+    },
+    [LLSYNC_CHAR_VAL_EVENT] = {
+        .uuid = {IOT_BLE_UUID_EVENT & 0xFF, (IOT_BLE_UUID_EVENT >> 8) & 0xFF},   // 0xFFE3
+        .perm = PERM_MASK_NTF,
+        .max_size = BLE_QIOT_EVENT_MAX_SIZE,
+        .ext_perm =  (2 << PERM_POS_UUID_LEN),
+    },
+
+    [LLSYNC_CLIENT_CHAR_CFG_DSCR] = {
+        .uuid = { 0x02, 0x29 },
+        .perm = PERM_MASK_WRITE_REQ|PERM_MASK_RD,
+        .max_size = 0,
+        .ext_perm = 0,
+    },
+};
+
+ln_trans_svr_desc_t g_att_desc = {
+    0
+};
+#elif
 static struct gattm_att_desc g_gap_service_atts[] = {
     [LLSYNC_DECL_CHAR_DEVICE_INFO] = {
         .uuid = { 0x03, 0x28 },
@@ -68,6 +109,7 @@ static struct gattm_att_desc g_gap_service_atts[] = {
         .ext_perm = 0,
     },
 };
+#endif
 
 
 static uint8_t ch_write_handle   = 0;
@@ -77,6 +119,7 @@ static uint8_t ch_cccd_enable    = 0;
 
 void _char_svc_handle_set(uint8_t start_hdl)
 {
+    LOG(LOG_LVL_INFO, "svc start hdl = %d\r\n", start_hdl);
     ch_write_handle  = start_hdl + LLSYNC_CHAR_VAL_DEVICE_INFO + 1;
     ch_notify_handle = start_hdl + LLSYNC_CHAR_VAL_EVENT + 1;
     ch_cccd_handle   = start_hdl + LLSYNC_CLIENT_CHAR_CFG_DSCR + 1;
@@ -111,29 +154,11 @@ void _char_cccd_enable_set(uint8_t en)
 
 static void _app_create_adv_activity(void)
 {
-    #define APP_ADV_CHMAP                (0x07) // Advertising channel map - 37, 38, 39
-    #define APP_ADV_INT_MIN              (80)   // Advertising minimum interval - (0.625ms * 80)
-    #define APP_ADV_INT_MAX              (100)  // Advertising maximum interval - (0.625ms * 100)
-
-    struct ln_gapm_activity_create_adv_cmd  adv_creat_param = {0};
-
-    adv_creat_param.own_addr_type                     = GAPM_STATIC_ADDR;
-    adv_creat_param.adv_param.type                    = GAPM_ADV_TYPE_LEGACY;//GAPM_ADV_TYPE_EXTENDED;//GAPM_ADV_TYPE_LEGACY;
-    adv_creat_param.adv_param.filter_pol              = ADV_ALLOW_SCAN_ANY_CON_ANY;
-    adv_creat_param.adv_param.prim_cfg.chnl_map       = APP_ADV_CHMAP;
-    adv_creat_param.adv_param.prim_cfg.phy            = GAP_PHY_1MBPS;
-    adv_creat_param.adv_param.prop                    = GAPM_ADV_PROP_UNDIR_CONN_MASK;//GAPM_ADV_PROP_NON_CONN_SCAN_MASK;
-    adv_creat_param.adv_param.disc_mode               = GAPM_ADV_MODE_GEN_DISC;
-    adv_creat_param.adv_param.prim_cfg.adv_intv_min   = APP_ADV_INT_MIN;
-    adv_creat_param.adv_param.prim_cfg.adv_intv_max   = APP_ADV_INT_MAX;
-    adv_creat_param.adv_param.max_tx_pwr              = 0;
-    //adv_creat_param.adv_param.second_cfg.phy        = GAP_PHY_1MBPS;//GAP_PHY_1MBPS;//GAP_PHY_CODED;
-    adv_creat_param.adv_param.second_cfg.max_skip     = 0x00;
-    adv_creat_param.adv_param.second_cfg.phy          = 0x01;
-    adv_creat_param.adv_param.second_cfg.adv_sid      = 0x00;
-    adv_creat_param.adv_param.period_cfg.adv_intv_min = 0x0400;
-    adv_creat_param.adv_param.period_cfg.adv_intv_max = 0x0400;
-    ln_app_advertise_creat(&adv_creat_param);
+    adv_param_t *adv_param = &le_adv_mgr_info_get()->adv_param;
+    
+    adv_param->adv_type = GAPM_ADV_TYPE_LEGACY;
+    adv_param->adv_prop = GAPM_ADV_PROP_UNDIR_CONN_MASK;
+    ln_ble_adv_actv_creat(adv_param);
 }
 
 static void _app_set_adv_data(adv_info_s *adv)
@@ -170,20 +195,15 @@ static void _app_set_adv_data(adv_info_s *adv)
 
     ble_qiot_log_hex(BLE_QIOT_LOG_LEVEL_INFO, "BLE_ADV raw data", (const char *)raw_adv_data, index);
 
-    struct ln_gapm_set_adv_data_cmd adv_data_param;
-    adv_data_param.actv_idx = adv_actv_idx;
-    adv_data_param.length   = index;
-    adv_data_param.data     = raw_adv_data;
-    ln_app_set_adv_data(&adv_data_param);
+    ln_adv_data_t adv_data_param;
+    adv_data_param.data = raw_adv_data;
+    adv_data_param.length = index;
+    ln_ble_adv_data_set(&adv_data_param);
 }
 
 static void _app_start_adv(void)
 {
-    struct ln_gapm_activity_start_cmd  adv_start_param = {0};
-    adv_start_param.actv_idx = adv_actv_idx;
-    adv_start_param.u_param.adv_add_param.duration = 0;
-    adv_start_param.u_param.adv_add_param.max_adv_evt = 0;
-    ln_app_advertise_start(&adv_start_param);
+    ln_ble_adv_start();
 }
 
 
@@ -198,6 +218,33 @@ int ble_get_mac(char *mac)
 
 void ble_services_add(const qiot_service_init_s *p_service)
 {
+#ifdef _FIMRWARE_SDK_V_1_8_
+    g_att_desc.att_desc = &g_gap_service_atts;
+    g_att_desc.start_handle = 0xFFFF;
+    g_att_desc.att_count = sizeof(g_gap_service_atts)/sizeof(g_gap_service_atts[0]);
+    g_att_desc.svr_uuid_len = 16;
+    
+    // service UUID (128bit) 0xFFF0
+    memcpy(g_att_desc.svr_uuid , p_service->service_uuid128, 16);
+    g_att_desc.svr_uuid[12] = p_service->service_uuid16 & 0xFF;
+    g_att_desc.svr_uuid[13] = (p_service->service_uuid16 >> 8) & 0xFF;
+    
+    //characteristic (write) -- UUID 0xFFE1
+    memcpy(g_att_desc.att_desc[LLSYNC_CHAR_VAL_DEVICE_INFO].uuid, p_service->service_uuid128, 16);
+    g_att_desc.att_desc[LLSYNC_CHAR_VAL_DEVICE_INFO].uuid[12] = p_service->device_info.uuid16 & 0xFF;
+    g_att_desc.att_desc[LLSYNC_CHAR_VAL_DEVICE_INFO].uuid[13] = (p_service->device_info.uuid16 >> 8) & 0xFF;
+
+    //characteristic (notify) -- UUID 0xFFE3
+    memcpy(g_att_desc.att_desc[LLSYNC_CHAR_VAL_EVENT].uuid, p_service->service_uuid128, 16);
+    g_att_desc.att_desc[LLSYNC_CHAR_VAL_EVENT].uuid[12] = p_service->event.uuid16 & 0xFF;
+    g_att_desc.att_desc[LLSYNC_CHAR_VAL_EVENT].uuid[13] = (p_service->event.uuid16 >> 8) & 0xFF;
+    if(BLE_ERR_NONE != ln_ble_trans_svr_add(&g_att_desc))
+    {
+        LOG(LOG_LVL_ERROR, "ble add svr fail!!\r\n");
+    }
+    //set start handle
+    _char_svc_handle_set(g_att_desc.start_handle);
+#elif
     int nb_att = sizeof(g_gap_service_atts)/sizeof(g_gap_service_atts[0]);
     struct ln_gattm_add_svc_req p_svc_desc;
     p_svc_desc.svc_desc.start_hdl = 0;
@@ -221,6 +268,7 @@ void ble_services_add(const qiot_service_init_s *p_service)
     p_svc_desc.svc_desc.nb_att = nb_att;
     p_svc_desc.svc_desc.atts = g_gap_service_atts;
     ln_app_gatt_add_svc(&p_svc_desc);
+#endif
 }
 
 ble_qiot_ret_status_t ble_advertising_start(adv_info_s *adv)
@@ -233,7 +281,7 @@ ble_qiot_ret_status_t ble_advertising_start(adv_info_s *adv)
 
 ble_qiot_ret_status_t ble_advertising_stop(void)
 {
-    ln_app_activity_stop(adv_actv_idx);
+    ln_ble_adv_stop();
     return BLE_QIOT_RS_OK;
 }
 
@@ -244,12 +292,12 @@ uint16_t ble_get_user_data_mtu_size(e_system type)
 
 ble_qiot_ret_status_t ble_send_notify(uint8_t *buf, uint8_t len)
 {
-    struct ln_gattc_send_evt_cmd param;
-    param.handle = _char_notify_handle_get();
-    param.length = len;
-    param.value  = buf;
-
-    ln_app_gatt_send_ntf(llsync_conid, &param);
+    ln_trans_svr_send_t svc_send_cmd;
+    svc_send_cmd.conn_idx = 0;
+    svc_send_cmd.data = buf;
+    svc_send_cmd.len = len;
+    svc_send_cmd.hdl = _char_notify_handle_get();
+    ln_ble_trans_svr_ntf(&svc_send_cmd);
     return BLE_QIOT_RS_OK;
 }
 
