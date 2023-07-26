@@ -16,13 +16,14 @@
 /*                            LLSync LN882H                                           */
 /**************************************************************************************/
 enum {
-    LLSYNC_DECL_CHAR_DEVICE_INFO = 0, /* write(micro_program -> ln882h)  */
-    LLSYNC_CHAR_VAL_DEVICE_INFO  = 1,
+    LLSYNC_DECL_CHAR_DECL_SVR    = 0,
+    LLSYNC_DECL_CHAR_DEVICE_INFO = 1, /* write(micro_program -> ln882h)  */
+    LLSYNC_CHAR_VAL_DEVICE_INFO  = 2,
     
-    LLSYNC_DECL_CHAR_EVENT       = 2, /* notify(ln882h -> micro_program) */
-    LLSYNC_CHAR_VAL_EVENT        = 3,
+    LLSYNC_DECL_CHAR_EVENT       = 3, /* notify(ln882h -> micro_program) */
+    LLSYNC_CHAR_VAL_EVENT        = 4,
     
-    LLSYNC_CLIENT_CHAR_CFG_DSCR  = 4, /* CCCD (micro_program -> ln882h)  */
+    LLSYNC_CLIENT_CHAR_CFG_DSCR  = 5, /* CCCD (micro_program -> ln882h)  */
 };
 
 #define DEVICE_NAME                  ("q")
@@ -34,7 +35,14 @@ uint8_t  llsync_conid  = 0xFF;
 uint16_t llsync_mtu    = 23; // TODO: 128
 
 #ifdef _FIMRWARE_SDK_V_1_8_
-static const ln_attm_desc_t g_gap_service_atts[] = {
+static ln_attm_desc_t g_gap_service_atts[] = {
+
+    [LLSYNC_DECL_CHAR_DECL_SVR] = {
+        .uuid = { 0x00, 0x28 },
+        .perm = PERM_MASK_RD,
+        .max_size = 0,
+        .ext_perm = (0 <<  PERM_POS_UUID_LEN),
+    },   
     [LLSYNC_DECL_CHAR_DEVICE_INFO] = {
         .uuid = { 0x03, 0x28 },
         .perm = PERM_MASK_RD,
@@ -118,9 +126,9 @@ static uint8_t ch_cccd_enable    = 0;
 void _char_svc_handle_set(uint8_t start_hdl)
 {
     LOG(LOG_LVL_INFO, "svc start hdl = %d\r\n", start_hdl);
-    ch_write_handle  = start_hdl + LLSYNC_CHAR_VAL_DEVICE_INFO + 1;
-    ch_notify_handle = start_hdl + LLSYNC_CHAR_VAL_EVENT + 1;
-    ch_cccd_handle   = start_hdl + LLSYNC_CLIENT_CHAR_CFG_DSCR + 1;
+    ch_write_handle  = start_hdl + LLSYNC_CHAR_VAL_DEVICE_INFO;
+    ch_notify_handle = start_hdl + LLSYNC_CHAR_VAL_EVENT;
+    ch_cccd_handle   = start_hdl + LLSYNC_CLIENT_CHAR_CFG_DSCR;
 }
 
 uint8_t _is_char_cccd_handle(uint8_t hdl)
@@ -217,11 +225,11 @@ int ble_get_mac(char *mac)
 void ble_services_add(const qiot_service_init_s *p_service)
 {
 #ifdef _FIMRWARE_SDK_V_1_8_
-    g_att_desc.att_desc = &g_gap_service_atts;
+    g_att_desc.att_desc = &g_gap_service_atts[0];
     g_att_desc.start_handle = 0xFFFF;
     g_att_desc.att_count = sizeof(g_gap_service_atts)/sizeof(g_gap_service_atts[0]);
     g_att_desc.svr_uuid_len = 16;
-    
+
     // service UUID (128bit) 0xFFF0
     memcpy(g_att_desc.svr_uuid , p_service->service_uuid128, 16);
     g_att_desc.svr_uuid[12] = p_service->service_uuid16 & 0xFF;

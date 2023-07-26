@@ -141,7 +141,14 @@ static void ln_ble_disconnect_cb(void *arg)
 static void ln_ble_gatt_write_req_cb(void *arg)
 {
     ble_evt_gatt_write_req_t *p_gatt_write = (ble_evt_gatt_write_req_t *)arg;
-    ble_device_info_write_cb(p_gatt_write->value, p_gatt_write->length);
+
+    if (_is_char_write_handle(p_gatt_write->handle)) {
+        ble_device_info_write_cb(p_gatt_write->value, p_gatt_write->length);
+    } else if (_is_char_cccd_handle(p_gatt_write->handle)) {
+        _char_cccd_enable_set(p_gatt_write->handle);
+    } else {
+        LOG(LOG_LVL_INFO,"%s | unkown handler\r\n", __FUNCTION__);
+    }
 }
 
 static void ln_ble_gatt_read_req_cb(void *arg)
@@ -178,6 +185,10 @@ int start_device_btcomboconfig(void)
     ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_DISCONNECTED, ln_ble_disconnect_cb);
     ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_GATT_READ_REQ,  ln_ble_gatt_read_req_cb);
     ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_GATT_WRITE_REQ, ln_ble_gatt_write_req_cb);
+    
+    ble_qiot_explorer_init();   // init llsync sdk
+    
+    ble_qiot_advertising_start();
 
 #else
     // TODO other init

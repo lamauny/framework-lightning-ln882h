@@ -27,6 +27,14 @@ extern "C" {
 #include "ln_ble_app_defines.h"
 #include "gapm_task.h"
 
+void _char_cccd_enable_set(uint8_t en);
+uint8_t _cccd_handle_get(void);
+uint8_t _char_notify_handle_get(void);
+uint8_t _char_write_handle_get(void);
+uint8_t _is_char_write_handle(uint8_t hdl);
+uint8_t _is_char_cccd_handle(uint8_t hdl);
+void _char_svc_handle_set(uint8_t start_hdl);
+
 void creat_usr_app_task(void);
 
 
