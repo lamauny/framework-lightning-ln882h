@@ -1,0 +1,8 @@
+
+rm -rf ./zj_net_os/sdk/zj-common
+rm -rf ./zj_net_os/sdk/adapter_common
+rm -rf ./zj_net_os/zengge_app
+
+cd ./zj_net_os/sdk/bk_sdk
+#!/bin/sh
+make clean

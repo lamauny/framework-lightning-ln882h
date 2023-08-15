@@ -1,0 +1,8 @@
+
+perl bulb_pwr.pl
+cp ./out/media.bin /mnt/hgfs/Vmshare/
+
+rm -rf sdk/bl_sdk/customer_app/zj_project/build_out/zj_app
+rm -rf sdk/bl_sdk/customer_app/zj_project/build_out/zj_adapt
+
+exit $?

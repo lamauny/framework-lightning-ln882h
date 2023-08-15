@@ -1,0 +1,137 @@
+menu "zjos"
+
+    config SYS_DBG
+        bool "SYS_DBG"
+        default y
+        help
+            Todo
+
+    config APPCONFIG_SURPLIFE_CMD
+        bool "SUPPORT_SURPLIFE_CMD"
+        default y
+        help
+            Todo
+
+    config APPCONFIG_MAGICHOME_CMD
+        bool "SUPPORT_MAGICHOME_CMD"
+        default y
+        help
+            Todo
+    config RMT_DATA_CO_HANDLE
+        bool "RMT_DATA_CO_HANDLE"
+        default n
+        help
+            Merge Bluetooth remote control data into data task for processing
+    config BT_DATA_CO_HANDLE
+        bool "BT_DATA_CO_HANDLE"
+        default n
+        help
+            Merge Bluetooth interaction protocol into data task for processing
+
+    menuconfig SUPPORT_DYNAMIC_SYNC
+        bool "Enable dynamic sync"
+        default n
+        help
+            DYNAMIC SYNC API
+            
+    if SUPPORT_DYNAMIC_SYNC
+        config SYNC_HB_TIMEOUT
+            int "sync hb timeout"
+            default 20
+            help
+                DYNAMIC SYNC API
+
+        config SYNC_HB_BECON
+            int "sync hb becon"
+            default 10
+            help
+                DYNAMIC SYNC API
+        
+        config SYNC_HB_SIZE
+            int "sync hb size"
+            default 16
+            help
+                DYNAMIC SYNC API
+        
+        config SYNC_ELECTION_TIME
+            int "sync election time"
+            default 30
+            help
+                DYNAMIC SYNC API
+    endif #SUPPORT_DYNAMIC_SYNC
+    
+    config USE_UDP_SERVER_SOCKET
+        bool "USE_UDP_SERVER_SOCKET"
+        default y
+        help
+            BSD socket API
+    config ZG_DATA_HANDLE_TASK_STACK_SIZE
+        int "data handle Task stack size"
+        range 0 8192 
+        default 1024
+        help
+           Todo
+    config BLE_PRO_HANDLE_TASK_STACK_SIZE
+        int "ble handle Task stack size"
+        range 0 8192 
+        default 1024
+        help
+           Todo
+    config USE_TCP_CLIENT_SOCKET
+        bool "USE_TCP_CLIENT_SOCKET"
+        default y
+        help
+            BSD socket API
+    config TCPC_SEND_USE_TASK
+        bool "TCPC_SEND_USE_TASK"
+        default n
+        help
+            todo
+    config TCPC_RECV_BUF_SIZE
+        int "Max size of Tcp Client RX buffers"
+        depends on USE_TCP_CLIENT_SOCKET
+        range 0 8192 
+        default 4096
+        help
+            todo
+    config USE_TCP_SERVER_SOCKET
+        bool "USE_TCP_SERVER_SOCKET"
+        default y
+        help
+            BSD socket API
+    config TCPS_RECV_BUF_SIZE
+        int "Max size of Tcp Server RX buffers"
+        depends on USE_TCP_SERVER_SOCKET
+        range 0 8192 
+        default 4096
+        help
+           Todo
+    config UDP_RECV_BUF_SIZE
+        int "Max size of udp Server RX buffers"
+        depends on USE_TCP_SERVER_SOCKET
+        range 0 1460 
+        default 1460
+        help
+           Todo
+    config TCP_SERVER_DISABLE_QUEUE
+        bool "TCP_SERVER_DISABLE_QUEUE"
+        default n
+        help
+           Todo
+    config TCP_CLIENT_DISABLE_QUEUE
+        bool "TCP_CLIENT_DISABLE_QUEUE"
+        default n
+        help
+           Todo
+    config PDC_QUEUE_DEPTH
+        int "Data processing center queue depth"
+        range 1 128 
+        default 10
+        help
+           Todo
+    config OLD_APP_PROTOCOL_FILT
+        bool "OLD_APP_PROTOCOL_FILT"
+        default n
+        help
+            Todo
+endmenu

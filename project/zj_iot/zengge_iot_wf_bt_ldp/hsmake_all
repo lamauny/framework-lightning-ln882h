@@ -1,0 +1,10 @@
+
+cd ./zj_net_os/sdk/bl_sdk/customer_app/zj_project
+
+#!/bin/sh
+
+make CONFIG_CHIP_NAME=BL602 CONFIG_LINK_ROM=1 CONFIG_PARTITION_TABLE_FLASH_SIZE=2 APPCONFIG_OUTPUT_TYPE_PWM=1 CONFIG_SURPLIFE_FUNC=1 CONFIG_MAGICHOME_FUNC=1 -j4
+
+cp ./build_out/bl_system.bin /mnt/hgfs/Vmshare/
+
+

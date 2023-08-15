@@ -1,0 +1,7 @@
+#!/bin/sh
+
+rm -rf /zj_net_os/sdk/bl_sdk/customer_app/zj_project/build_out
+
+
+exit $?
+

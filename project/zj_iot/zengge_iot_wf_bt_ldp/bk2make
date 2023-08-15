@@ -1,0 +1,8 @@
+
+cd ./zj_net_os/sdk/bk_sdk
+#!/bin/sh
+
+make bk7231n CONFIG_UART1_BAUD_RATE=2000000 -j4
+
+cp ./out/all_2M.1220.bin /mnt/hgfs/Vmshare/
+cp ./out/beken7231_bsp.bin /mnt/hgfs/Vmshare/

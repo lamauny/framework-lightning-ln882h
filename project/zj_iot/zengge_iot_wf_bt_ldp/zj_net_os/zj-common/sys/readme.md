@@ -1,0 +1,19 @@
+# 系统功能
+
+### 代码结构
+```
+.
+├── AT_CMD.c                   # AT指令
+├── ZG_system_entry.c         　# 系统事件
+├── encyption.c            　　 　# AES加密功能
+├── fota.c               　　　　　　# 在线升级功能
+├── debuginfo.c           　　　　　# bug信息
+├── userdata_key.h        　　　　　# 用户数据保存的key值
+└── readme.md                  # 说明文档
+```
+
+## 参考文档
+
+> 文档资源
+
+1. https://docs.qq.com/doc/DQk5XVU9OZE55cHdw

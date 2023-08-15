@@ -1,0 +1,9 @@
+[submodule "sdk/esp_sdk"]
+	path = sdk/esp_sdk
+	url = git@gitee.com:wayching/esp-sdk-port-conponent.git
+[submodule "sdk/bk_sdk"]
+	path = sdk/bk_sdk
+	url = git@gitee.com:wayching/bk7231n-sdk.git
+[submodule "sdk/bl_sdk"]
+	path = sdk/bl_sdk
+	url = git@gitee.com:wayching/bl-sdk-new.git
