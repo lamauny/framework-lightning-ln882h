@@ -1,6 +1,7 @@
 
 #include "zj_adapt_api.h"
 #include "zj_adapt_config.h"
+#include <stdbool.h>
 
 #define FEBRUARY		2
 #define	STARTOFTIME		1970
