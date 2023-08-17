@@ -13,6 +13,7 @@ void dynamic_sync_team_leader_election();
 uint32_t dynamic_sync_get_leader_address();
 void dynamic_sync_hbm();
 void dynamic_sync_update_node(node_hb_t *hb_inf);
+void dynamic_sync_cmd_send(uint8_t *data,uint16_t len);
 void register_dynamic_sync_callback(dynamic_func_t cb);
 
 

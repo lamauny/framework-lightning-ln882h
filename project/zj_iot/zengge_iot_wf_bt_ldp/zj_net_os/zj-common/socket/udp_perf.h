@@ -36,6 +36,7 @@ extern "C" {
 typedef void (*dynamic_sync_recv_cb_t)(uint8_t* data,uint16_t len,uint32_t addr);
 void register_dynamic_sync_udp_recv_callback(dynamic_sync_recv_cb_t cb);
 void UDP_Send_sync(uint8_t *pdata,uint16_t len);
+void UDP_Send_sync_unicast(uint8_t *pdata,uint16_t len,uint32_t addr);
 #endif
 
 void UDP_Send(char *pdata,uint16_t len);

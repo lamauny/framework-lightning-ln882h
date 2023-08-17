@@ -1,9 +1,22 @@
 #include "zj_adapt_api.h"
 #include "zj_adapt_config.h"
+#include "freertos_common.h"
+#include "debug/log.h"
 
 #define    TAG    "SYSAPT"
+#define    ZJ_LOCAL_LOG_LVL LOG_LVL_INFO
+
+#undef ZJ_LOG
+#define ZJ_LOG(fmt, ...)  LOG(ZJ_LOCAL_LOG_LVL, "["TAG"]"fmt, ##__VA_ARGS__)
 
 #define STORAGE_NAMESPACE "storage"
+
+
+uint32_t esp_timer_get_time(void)
+{
+    OS_GetTime();
+}
+
 /**
  * @brief get free heap
  * @note 
@@ -12,9 +25,8 @@
  */
 uint32_t zj_get_freeheap()
 {
-    // return esp_get_free_heap_size();
-    return 0;
-} 
+    return OS_GetFreeHeapSize();
+}
 
 void zj_flash_write(uint32_t addr ,uint8_t *pbuf,int len)
 {

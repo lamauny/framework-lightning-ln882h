@@ -2,15 +2,19 @@
 #ifndef NET_UTILS__H
 #define NET_UTILS__H
 
-#define NET_TYPE_DEFAULT           0         /*出厂默认网络:WIFI AP + BLE(if ble is supported)*/
-#define NET_TYPE_NET_CONNECT       1         /*触发配网:WIFI STA + BLE(if ble is supported)*/
-#define NET_TYPE_ONLY_BLE          2         /*only BLE(if ble is supported)*/
-#define NET_TYPE_ONLY_WIFI         3         /*only WIFI*/
-#define NET_TYPE_ONLY_SCAN         4
-#define NET_TYPE_ONLY_WIFI_NOBTRMT 5
-#define NET_TYPE_OFF               6
-#define NET_TYPE_ENABLE_RECFG      7
-#define NET_TYPE_MAX               8
+#define NET_TYPE_FACTORY_WIFI_BLE_RMT           0         /*出厂默认网络:WIFI AP & BLE & RMT*/
+#define NET_TYPE_STA_BLE_RMT                    1         /*已配网:WIFI STA & BLE & RMT*/
+#define NET_TYPE_BLE_RMT                        2         /*已配网:BLE & RMT*/
+#define NET_TYPE_WIFI_RMT                       3         /*已配网:WIFI (AP | STA) & RMT*/
+#define NET_TYPE_RMT                            4         /* only RMT */
+#define NET_TYPE_FACTORY_WIFI                   5         /* 出厂默认网络:WIFI AP */
+#define NET_TYPE_OFF                            6         /* 关闭所有的:WIFI & BLE & RMT */
+#define NET_TYPE_ENABLE_RECFG                   7         /*BLE 允许重新配网*/
+#define NET_TYPE_MAX                            8
+
+#ifndef CONFIG_NET_TYPE_DEFAULD
+#define CONFIG_NET_TYPE_DEFAULD    NET_TYPE_FACTORY_WIFI_BLE_RMT
+#endif
 
 typedef void (*net_cfg_cb_t)(uint8_t type);
 
@@ -24,8 +28,8 @@ void dynamic_sync_payload_update(uint8_t *group_id,uint8_t mode_type,uint8_t mod
  * @brief 网络类型配置
  * @note 
  * @param[in] type : 网络类型
- * - NET_TYPE_ONLY_BLE:
- * - NET_TYPE_ONLY_WIFI:
+ * - NET_TYPE_BLE_RMT:
+ * - NET_TYPE_WIFI_RMT:
  * @param[out] none
  *
  * @return none

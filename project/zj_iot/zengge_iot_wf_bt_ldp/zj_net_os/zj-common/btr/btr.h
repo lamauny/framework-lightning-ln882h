@@ -63,4 +63,14 @@ uint8_t btr_get_bind_count();
  */
 void btr_clear_all_bind();
 
+  /**
+ * @brief 重置刷机参数时间
+ * @note 
+ * @param[in] none
+ * @param[out] none
+ *
+ * @return none
+ */
+void btr_reset_op_init_time();
+
 #endif

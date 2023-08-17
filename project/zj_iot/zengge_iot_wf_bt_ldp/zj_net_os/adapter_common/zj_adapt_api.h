@@ -93,7 +93,8 @@ typedef enum{
     ADAPT_EVT_OTA_STATUS,
     ADAPT_EVT_BLE_RMT,
     ADAPT_EVT_STORE,
-    ADAPT_EVT_MESH_WIFI_SCAN
+    ADAPT_EVT_MESH_WIFI_SCAN,
+    ADAPT_EVT_BLE_DEINIT_DONE
 }zj_adapter_evt_t;
 
 typedef struct  {
@@ -148,6 +149,7 @@ void zj_pwm_cold_channel_init(int freq);
 void zj_pwm_set_duty(uint8_t ch,int duty);
 /*****************************system api适配****************************************/
 void zj_watchdog_start();
+void zj_watchdog_feed();
 int zj_watchdog_stop(uint32_t time);
 
 int zj_ota_get_image(char *http_url);
@@ -186,6 +188,7 @@ int zj_get_ap_rssi();
 uint8_t zj_get_lan_code();
 void zj_set_lan_code(uint8_t code);
 /*****************************ble api适配****************************************/
+void zj_ble_drv_deinit();
 void zj_ble_drv_init();
 void zj_ble_scan_stop();
 void zj_ble_scan_start();

@@ -24,10 +24,36 @@ typedef enum {
     BLUFI_CMDID_QUERY_DIAGNOSIS = 0x11,   /* 查询网络诊断状态 */
     BLUFI_CMDID_NET_REPAIR      = 0x12,   /*  网络修复 */
     BLUFI_CMDID_JSON_RECV,
-    BLUFI_CMDID_JSON_SEND      
+    BLUFI_CMDID_JSON_SEND,
+    BLUFI_CMDID_EXTENSION_INF_QUER = 0x1E,    /* 扩展信息查询 */
+    BLUFI_CMDID_CMDIDLIST_QUER = 0x1F,        /* CMDID列表查询 */   
+    BLUFI_CMDID_MAX   
 } cmd_id_t;
 
+#ifndef CONFIG_CFGNET_EXTEN_INF_SIZE
+#define CONFIG_CFGNET_EXTEN_INF_SIZE   32
+#endif
+
 typedef void (*ble_cfg_net_data_t)(char *data,int len);
+
+typedef struct  {
+
+    void (*extension_inf_get) (void(*data_get)(void *));
+}cfgnet_extension_inf_cb_t;
+/**
+ * @brief 设置扩展参数发送总长度
+ * @note  
+ * @param[in]  len
+ * @return none
+ */
+void zj_ble_mesh_set_exten_inf_len(uint16_t len);
+/**
+ * @brief 注册配网扩展参数回调获取事件
+ * @note  
+ * @param[in]  cb 事件
+ * @return none
+ */
+void register_cfgnet_extenInf_get_callback(cfgnet_extension_inf_cb_t cb);
  /**
  * @brief 注册蓝牙配置网络数据回调
  * @note 
@@ -50,7 +76,7 @@ void zj_ble_pro_init();
  *
  * @return none
  */
-void blufi_wlan_status_report(uint8_t cmd_id,uint8_t status);
+void blufi_wlan_status_report(uint8_t cmd_id,uint8_t status,bool is_ble);
  /**
  * @brief 控制协议返回
  * @note 
@@ -82,6 +108,7 @@ int zj_ble_json_send(char *data,int len);
 uint8_t blufi_get_configNet_flag();
 void blufi_clear_configNet_flag();
 void network_info_query(uint8_t option);
+void at_blufi_write(char *data,int len,uint8_t cmd_id,uint16_t malloc_len);
 
 #ifdef __cplusplus
 }

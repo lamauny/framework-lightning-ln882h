@@ -9,13 +9,13 @@
 #include "semphr.h"
 #include "timers.h"
 /*适配对应平台所需的头文件*/
-// #include "esp_system.h"
-// #include "esp_mac.h"
-// #include "esp_wifi.h"
-// #include "esp_event.h"
-// #include "esp_log.h"
-// #include "nvs_flash.h"
-// #include "esp_timer.h"
+#include "osal/osal.h"
+#include "utils/debug/log.h"
+#include "ln882h.h"
+#include "wifi.h"
+#include "wifi_port.h"
+#include "netif/ethernetif.h"
+#include "wifi_manager.h"
 /*适配socket 头文件*/
 #include "lwip/inet.h"
 #include "lwip/sockets.h"
@@ -31,7 +31,7 @@
 #include <lwip/ip.h>
 
 #include "mbedtls/aes.h"
-   
+
 #if (CONFIG_DEBUG_LOG_LEVEL == 1)
   #define os_printf  printf
 #elif (CONFIG_DEBUG_LOG_LEVEL == 2) 
@@ -75,7 +75,8 @@
 #define USE_ZG_KV_MODULE_OPTION               0               /*征极基于key值的保存模块*/
 #define USE_ZG_KV_LOCK                        0               /*lock*/
 
-#define PORT_CONFIG_SYSTEM_TIME               esp_timer_get_time() / 1000                              /*适配系统时间*/
+extern uint32_t esp_timer_get_time(void);
+#define PORT_CONFIG_SYSTEM_TIME               OS_GetTime() / 1000                              /*适配系统时间*/
 #define PROT_CONFIG_KEY_FLASH_SIZE            (4096)                                         /*适配保存密钥的flash区域大小*/
 
 #define PROT_CONFIG_KEY_FLASH_OFFSET          0                                              /*适配密钥在对应flash地址的起始值*/

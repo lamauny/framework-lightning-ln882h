@@ -4,9 +4,9 @@
 
 /*------   Version   ------*/
 #define OS_VERSION_MAJOR    8    /* for breaking interface changes  */
-#define OS_VERSION_MINOR    12    /* for new (non-breaking) interface capabilities */
-#define OS_VERSION_REVISION 4    /* for tweaks, bug-fixes, or development */
-#define OS_BUILD_NUMBER     0
+#define OS_VERSION_MINOR    20   /* for new (non-breaking) interface capabilities */
+#define OS_VERSION_REVISION 0    /* for tweaks, bug-fixes, or development */
+#define OS_BUILD_NUMBER     1
 
 #define OS_VERSION_NUMBER (OS_VERSION_MAJOR *100*100 + OS_VERSION_MINOR *100 + OS_VERSION_REVISION)
 

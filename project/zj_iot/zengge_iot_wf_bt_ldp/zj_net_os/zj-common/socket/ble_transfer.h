@@ -41,7 +41,7 @@ extern "C" {
 #define PRO_PORTECTE      (1)
 #define PRO_NOT_PORTECTE  (0)
 
- typedef void (*ble_recv_cb_t)(uint8_t cmdid, uint8_t *data,int len);
+ typedef void (*ble_recv_cb_t)(uint8_t cmdid, uint8_t *data,int len,bool is_ble);
 
 struct pro_event {
 
@@ -85,7 +85,7 @@ void ble_pro_trans_init (ble_recv_cb_t cb );
 int ble_pro_trans_parse ( const void *buf,
                      size_t bytes);
 int ble_pro_send (uint8_t seq,uint8_t ack, uint8_t type,const void *p_data, uint16_t length);
-                    
+void ble_cmdid_event_post(uint8_t cmidid,uint8_t *data,int len,bool is_ble);                 
 
 #ifdef __cplusplus
 }

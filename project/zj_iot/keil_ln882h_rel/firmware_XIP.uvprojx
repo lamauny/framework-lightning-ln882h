@@ -326,7 +326,7 @@
             <uThumb>0</uThumb>
             <uSurpInc>0</uSurpInc>
             <uC99>1</uC99>
-            <uGnu>0</uGnu>
+            <uGnu>1</uGnu>
             <useXO>0</useXO>
             <v6Lang>1</v6Lang>
             <v6LangP>1</v6LangP>
@@ -1348,6 +1348,11 @@
               <FileName>zj_adapter_evt.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\zengge_iot_wf_bt_ldp\zj_net_os\adapter_common\zj_adapter_evt.c</FilePath>
+            </File>
+            <File>
+              <FileName>libzj_net_os.lib</FileName>
+              <FileType>4</FileType>
+              <FilePath>..\zengge_iot_wf_bt_ldp\zj_net_os\lib\libzj_net_os.lib</FilePath>
             </File>
           </Files>
         </Group>

@@ -41,6 +41,10 @@ unsigned int press_count();
 unsigned int press_count2();
 void press_count_clear();
 
+
+void new_convertHSVtoRGB(uint16_t hue, uint8_t saturation, uint8_t value, uint16_t *red, uint16_t *green, uint16_t *blue);
+void new_convertRGBtoHSV(uint16_t red, uint16_t green, uint16_t blue, uint16_t *hue, uint8_t *saturation, uint8_t *value);
+
 /*  
  * Converts RGB values to HSV storing in given addresses
  *

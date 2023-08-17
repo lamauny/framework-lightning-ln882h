@@ -22,6 +22,10 @@ extern "C" {
 
 #define LOGIN_PKT_LENGTH               320 
 
+#ifdef CONFIG_USE_TCP_CLIENT_SOCKET
+#define USE_TCP_CLIENT_SOCKET
+#endif
+
 #ifndef USE_TCP_CLIENT_SOCKET
 #define USE_TCP_CLIENT_RAW
 #endif
@@ -71,6 +75,7 @@ uint32_t tcp_client_get_login_count();
 uint16_t tcp_client_get_poweron_count();
 
 uint32_t WIFI_disconnect_count_get();
+uint32_t WIFI_disconnect_time_get();
 
 int tcp_client_ping_check();
 void tcp_client_ping_set_success();

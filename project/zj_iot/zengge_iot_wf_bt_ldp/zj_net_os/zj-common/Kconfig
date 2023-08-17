@@ -77,6 +77,12 @@ menu "zjos"
         default 1024
         help
            Todo
+    config UDP_TASK_STACK_SIZE
+        int "udp server Task stack size"
+        range 0 8192 
+        default 1024
+        help
+           Todo
     config USE_TCP_CLIENT_SOCKET
         bool "USE_TCP_CLIENT_SOCKET"
         default y
@@ -122,16 +128,26 @@ menu "zjos"
         bool "TCP_CLIENT_DISABLE_QUEUE"
         default n
         help
+           tcp client send does not use queue
+    config UDP_SERVER_DISABLE_QUEUE
+        bool "UDP_SERVER_DISABLE_QUEUE"
+        default n
+        help
            Todo
     config PDC_QUEUE_DEPTH
         int "Data processing center queue depth"
         range 1 128 
         default 10
         help
-           Todo
+           Data Center Queue Depth
     config OLD_APP_PROTOCOL_FILT
         bool "OLD_APP_PROTOCOL_FILT"
         default n
         help
-            Todo
+            filter old protocol options
+    config OTA_ALWAY_PROMPT
+        bool "OTA_ALWAY_PROMPT"
+        default y
+        help
+            The online upgrade trigger always prompts for options
 endmenu
