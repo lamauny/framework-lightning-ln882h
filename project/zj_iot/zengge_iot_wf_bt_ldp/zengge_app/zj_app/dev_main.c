@@ -100,7 +100,7 @@ void ZG_light_system_start(void)
     ZG_data_event_init();
 
     #ifdef APPCONFIG_OUTPUT_DRV_IIC
-        zj_dbg_printf("iicI:chip%d:%d-%d-%d-%d-%d\n\n",
+        zj_dbg_printf("iicI:chip%d:%d-%d-%d-%d-%d\r\n",
                         APPCONFIG_IC_TYPE,
                         APPCONFIG_R_CUR,
                         APPCONFIG_G_CUR,

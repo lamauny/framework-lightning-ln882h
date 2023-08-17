@@ -32,11 +32,12 @@
 
 #include "mbedtls/aes.h"
 
-#if (CONFIG_DEBUG_LOG_LEVEL == 1)
-  #define os_printf  printf
-#elif (CONFIG_DEBUG_LOG_LEVEL == 2) 
-  #define zj_printf  printf
-  #define os_printf  printf
+#if (CONFIG_DEBUG_LOG_LEVEL == 1) /* LOG_I */
+  #define zj_printf(fmt, ...)  LOG(LOG_LVL_INFO, fmt, ##__VA_ARGS__)            /* no newline */
+  #define os_printf(fmt, ...)  LOG(LOG_LVL_INFO, fmt, ##__VA_ARGS__)            /* no newline */
+#elif (CONFIG_DEBUG_LOG_LEVEL == 2) /* LOG_D */
+  #define zj_printf(fmt, ...)  LOG(LOG_LVL_DEBUG, fmt, ##__VA_ARGS__)           /* no newline */
+  #define os_printf(fmt, ...)  LOG(LOG_LVL_DEBUG, fmt, ##__VA_ARGS__)           /* no newline */
 #endif
 
 #ifndef os_printf
@@ -47,7 +48,7 @@
 #define zj_printf(...)
 #endif
 
-#define zj_dbg_printf printf
+#define zj_dbg_printf(fmt, ...) LOG(LOG_LVL_INFO, fmt, ##__VA_ARGS__)
 
 /*适配线程优先级*/
 #define PORT_CONFIG_LIGHT_TASK_PRIO           (configMAX_PRIORITIES)

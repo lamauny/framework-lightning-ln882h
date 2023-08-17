@@ -41,6 +41,11 @@ static uint32_t g_ota_take_time;
 
 //     };
 
+void ota_data_dec(uint8_t key,uint8_t *inoutdata,int len)
+{
+    
+}
+
 #ifdef CONFIG_COMPRESS_OTA
 #include "esp_crc.h"
 #include "md/esp_md.h"

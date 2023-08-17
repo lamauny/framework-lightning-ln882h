@@ -36,7 +36,7 @@
 #define APPCONFIG_DEF_WIRING_TYPE         WIRING_TYPE_NONE   
 #define APPCONFIG_RESTORE_COUNT           6
 #define APPCONFIG_LONG_PRESS_RESTORE_TIME 20
-#define APPCONFIG_SUPPORT_KEY             KEY_LPDMD     /* 按键类型：长按调光 */
+//#define APPCONFIG_SUPPORT_KEY             KEY_LPDMD     /* 按键类型：长按调光 */
 #define APPCONFIG_NONSUPPORT_BR_DIM_CURVE       /* 取消亮度调光曲线 */
 #define APPCONFIG_NONSUPPORT_LOW_LIGHT_LEVEL    /* 取消低亮度处理 */
 #define APPCONFIG_RESET_CLR_CFG                 /* 恢复出厂清除参数 */
