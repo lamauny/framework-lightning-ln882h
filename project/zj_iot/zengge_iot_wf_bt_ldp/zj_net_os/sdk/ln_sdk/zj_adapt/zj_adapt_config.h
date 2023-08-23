@@ -51,25 +51,25 @@
 #define zj_dbg_printf(fmt, ...) LOG(LOG_LVL_INFO, fmt, ##__VA_ARGS__)
 
 /*适配线程优先级*/
-#define PORT_CONFIG_LIGHT_TASK_PRIO           (configMAX_PRIORITIES)
-#define PORT_CONFIG_LIGHT_FUNC_PRIO           (5)
-#define PORT_CONFIG_LIGHT_REMOTE_TASK_PRIO    (4)
-#define PORT_CONFIG_TCP_SERVER_TASK_PRIO      (12)
-#define PORT_CONFIG_TCP_CLIENT_TASK_PRIO      (13)
-#define PORT_CONFIG_TCP_CLIENT_SEND_TASK_PRIO (10)
-#define PORT_CONFIG_UDP_SERVER_TASK_PRIO      (16)
-#define PORT_CONFIG_TIMER_CLOCK_TASK_PRIO     (2)
-#define PORT_CONFIG_AUTO_REPORT_TASK_PRIO     (3)
-#define PORT_CONFIG_FOTA_TASK_PRIO            (10)
-#define PORT_CONFIG_ZG_EVENT_LOOP_TASK_PRIO   (11)
-#define PORT_CONFIG_ZG_WATCHDOG_TASK_PRIO     (1)
-#define PORT_CONFIG_KV_TASK_PRIO              (1)  
-#define PORT_CONFIG_MIC_TASK_PRIO             (5)  
-#define PORT_CONFIG_BT_REMOTE_EVENT_TASK_PRIO (6)  
-#define PORT_CONFIG_KEY_TASK_PRIO             (15)
-#define PORT_CONFIG_BLE_TASK_PRIO             (15)
-#define ZG_DATA_TASK_PRIO                     (7)
-#define PORT_CONFIG_NET_DIAGNOSIS_TASK_PRIO   (15)
+#define PORT_CONFIG_LIGHT_TASK_PRIO           (configMAX_PRIORITIES) /* true is configMAX_PRIORITIES - 1 */
+#define PORT_CONFIG_LIGHT_FUNC_PRIO           (3) // (5)
+#define PORT_CONFIG_LIGHT_REMOTE_TASK_PRIO    (2) // (4)
+#define PORT_CONFIG_TCP_SERVER_TASK_PRIO      (3) // (12)
+#define PORT_CONFIG_TCP_CLIENT_TASK_PRIO      (4) // (13)
+#define PORT_CONFIG_TCP_CLIENT_SEND_TASK_PRIO (3) // (10)
+#define PORT_CONFIG_UDP_SERVER_TASK_PRIO      (5) // (16)
+#define PORT_CONFIG_TIMER_CLOCK_TASK_PRIO     (2) // (2)
+#define PORT_CONFIG_AUTO_REPORT_TASK_PRIO     (2) // (3)
+#define PORT_CONFIG_FOTA_TASK_PRIO            (3) // (10)
+#define PORT_CONFIG_ZG_EVENT_LOOP_TASK_PRIO   (4) // (11)
+#define PORT_CONFIG_ZG_WATCHDOG_TASK_PRIO     (1) // (1)
+#define PORT_CONFIG_KV_TASK_PRIO              (1) // (1)  
+#define PORT_CONFIG_MIC_TASK_PRIO             (3) // (5)  
+#define PORT_CONFIG_BT_REMOTE_EVENT_TASK_PRIO (4) // (6)  
+#define PORT_CONFIG_KEY_TASK_PRIO             (5) // (15)
+#define PORT_CONFIG_BLE_TASK_PRIO             (5) // (15)
+#define ZG_DATA_TASK_PRIO                     (3) // (7)
+#define PORT_CONFIG_NET_DIAGNOSIS_TASK_PRIO   (4) // (15)
 
 #define PORT_CONFIG_UINT32_T_IS_LUI           /*uint32_t is long unsigned int*/
 
@@ -77,19 +77,18 @@
 #define USE_ZG_KV_LOCK                        0               /*lock*/
 
 extern uint32_t esp_timer_get_time(void);
-#define PORT_CONFIG_SYSTEM_TIME               OS_GetTime() / 1000                              /*适配系统时间*/
-#define PROT_CONFIG_KEY_FLASH_SIZE            (4096)                                         /*适配保存密钥的flash区域大小*/
+#define PORT_CONFIG_SYSTEM_TIME               OS_GetTime() / 1000                          /* 适配系统时间 */
+#define PROT_CONFIG_KEY_FLASH_SIZE            (4096)                                       /* 适配保存密钥的flash区域大小 */
 
-#define PROT_CONFIG_KEY_FLASH_OFFSET          0                                              /*适配密钥在对应flash地址的起始值*/
+#define PROT_CONFIG_KEY_FLASH_OFFSET          0x001F8000                                   /* 适配密钥在对应flash地址的起始值*/
+#define PROT_CONFIG_KEY_FLASH_ADDR            0x0000 + PROT_CONFIG_KEY_FLASH_OFFSET        /* 适配保存密钥的flash地址，4K */
+#define PORT_CONFIG_CIPHERTEXT_FLASH_ADDR     0x001F9000                                   /* 适配保存密文的flash地址，4K */
+#define PORT_CONFIG_IIC_FLASH_ADDR            0x001FF000                                   /* Murphy TODOs */
+#define PORT_CONFIG_USER_DATA_FLASH_ADDR      0x001FA000                                   /* 适配保存用户数据的flash地址 */
+#define PORT_CONFIG_USER_DATA_SIZE            16*1024                                      /* 适配保存用户数据的flash大小 16K */
+#define PORT_BTR_NEW_SCENE_ADDR               0x001FE000                                   /* 适配场景功能，4K */
 
-#define PROT_CONFIG_KEY_FLASH_ADDR            0x0000 + PROT_CONFIG_KEY_FLASH_OFFSET        /*适配保存密钥的flash地址*/
-#define PORT_CONFIG_CIPHERTEXT_FLASH_ADDR     0x1000                                       /*适配保存密文的flash地址*/
-#define PORT_CONFIG_IIC_FLASH_ADDR           
-#define PORT_CONFIG_USER_DATA_FLASH_ADDR                                             /*适配保存用户数据的flash地址*/
-#define PORT_CONFIG_USER_DATA_SIZE                                                      /*适配保存用户数据的flash大小*/
-#define PORT_BTR_NEW_SCENE_ADDR               0x2000
-
-#define PORT_CONFIG_OTA_IMAGE_NAME            "esp_ota.bin.xz.packed"                               /*适配ota文件名*/
+#define PORT_CONFIG_OTA_IMAGE_NAME            "esp_ota.bin.xz.packed"                      /* 适配ota文件名 */
 
 
 #define PORT_CONFIG_PWM_RED_CHANNEL           3                                 /*适配pwm red channel*/

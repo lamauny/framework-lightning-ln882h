@@ -29,13 +29,13 @@
 
 
 static OS_Thread_t g_usr_app_thread;
-#define USR_APP_TASK_STACK_SIZE   6*256 //Byte
+#define USR_APP_TASK_STACK_SIZE   6*1024 //Byte
 
 #define WIFI_TEMP_CALIBRATE             1//1
 
 #if WIFI_TEMP_CALIBRATE
 static OS_Thread_t g_temp_cal_thread;
-#define TEMP_APP_TASK_STACK_SIZE   4*256 //Byte
+#define TEMP_APP_TASK_STACK_SIZE   4*2048 //Byte
 #endif
 
 /* declaration */
@@ -222,24 +222,28 @@ static void temp_cal_app_task_entry(void *params)
     int16_t curr_adc = 0;
     uint8_t cnt = 0;
 
-    if (NVDS_ERR_OK == ln_nvds_get_xtal_comp_val((uint8_t *)&cap_comp)) {
-        if ((uint8_t)cap_comp == 0xFF) {
-            cap_comp = 0;
-        }
-    }
+    // if (NVDS_ERR_OK == ln_nvds_get_xtal_comp_val((uint8_t *)&cap_comp)) {
+    //     if ((uint8_t)cap_comp == 0xFF) {
+    //         cap_comp = 0;
+    //     }
+    // }
 
-    drv_adc_init();
+    // drv_adc_init();
+    // wifi_temp_cal_init(drv_adc_read(ADC_CH0), cap_comp);
 
-    wifi_temp_cal_init(drv_adc_read(ADC_CH0), cap_comp);
+    extern void ZG_light_system_start(void);
+    LOG(LOG_LVL_INFO, "=== ZG_light_system_start ===\r\n");
+    ZG_light_system_start();
+    LOG(LOG_LVL_INFO, "=== ZG_light_system_start end ===\r\n");
 
     while (1)
     {
         OS_MsDelay(1000);
 
-        adc_val = drv_adc_read(ADC_CH0);
-        wifi_do_temp_cal_period(adc_val);
+        // adc_val = drv_adc_read(ADC_CH0);
+        // wifi_do_temp_cal_period(adc_val);
 
-        curr_adc = (adc_val & 0xFFF);
+        // curr_adc = (adc_val & 0xFFF);
 
         cnt++;
         if ((cnt % 60) == 0) {
@@ -253,11 +257,11 @@ static void temp_cal_app_task_entry(void *params)
 
 void creat_usr_app_task(void)
 {
-    if(OS_OK != OS_ThreadCreate(&g_usr_app_thread, "WifiUsrAPP", usr_app_task_entry, NULL, OS_PRIORITY_BELOW_NORMAL, USR_APP_TASK_STACK_SIZE)) {
-        LN_ASSERT(1);
-    }
+    // if(OS_OK != OS_ThreadCreate(&g_usr_app_thread, "WifiUsrAPP", usr_app_task_entry, NULL, OS_PRIORITY_BELOW_NORMAL, USR_APP_TASK_STACK_SIZE)) {
+    //     LN_ASSERT(1);
+    // }
 
-    ble_creat_usr_app_task();
+    // ble_creat_usr_app_task();
 
 #if  WIFI_TEMP_CALIBRATE
     if(OS_OK != OS_ThreadCreate(&g_temp_cal_thread, "TempAPP", temp_cal_app_task_entry, NULL, OS_PRIORITY_BELOW_NORMAL, TEMP_APP_TASK_STACK_SIZE)) {

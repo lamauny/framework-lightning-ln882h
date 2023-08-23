@@ -3,17 +3,21 @@
 #include "zj_adapt_config.h"
 #include <stdbool.h>
 
-#define   TAG  "WFAPT"
+#define    TAG  "WFAPT"
+#define    ZJ_LOCAL_LOG_LVL LOG_LVL_INFO
+
+#undef ZJ_LOG
+#define ZJ_LOG(fmt, ...)  LOG(ZJ_LOCAL_LOG_LVL, "["TAG"]"fmt, ##__VA_ARGS__)
 
 static uint32_t g_restart_time = 1000;
-// esp_netif_t *sta_netif = NULL;
-// esp_netif_t *ap_netif = NULL;
 static uint8_t g_wifi_state = WIFI_STATE_IDLE;
 
 static bool g_wifi_sta_stop_flag;
 
 void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_len)
 {
+    ZJ_LOG("[%s:%d] ssid:%s, pwd:%s\r\n",
+        __func__, __LINE__, (const char *)ssid, (const char *)pwd);
     // g_wifi_state = WIFI_STATE_CONNECTING;
     // wifi_mode_t mode;
     // esp_wifi_get_mode(&mode);
@@ -40,6 +44,7 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
 
 void zj_wifi_STA_Stop()
 {
+    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
     // g_wifi_sta_stop_flag = true;
     // esp_wifi_disconnect();
     // vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -48,6 +53,7 @@ void zj_wifi_STA_Stop()
 
 int wifi_mgmr_status_code_clean_internal()
 {
+    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
     return 0;
 }
 
@@ -77,6 +83,8 @@ int wifi_mgmr_status_code_clean_internal()
 
 void zj_wifi_AP_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_len)
 {
+    ZJ_LOG("[%s:%d] ssid:%s, pwd:%s\r\n",
+        __func__, __LINE__, (const char *)ssid, (const char *)pwd);
     // wifi_config_t wifi_config = {
     //     .ap = {
     //         .authmode = WIFI_AUTH_WPA_WPA2_PSK,
@@ -106,21 +114,19 @@ void zj_wifi_AP_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_le
 
 void zj_wifi_AP_Stop()
 {
-	
+    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
 }
-
-
-static TimerHandle_t g_reboot_timer;
 
 static void reboot_timer_cb(void *arg)
 {
-//    esp_restart();
+    ln_chip_reboot();
 }
 
 void zj_restart_set_time(uint32_t time)
 {
 	g_restart_time = time;
 }
+
 /** 
  * @brief 1s后重启系统
  * @note  
@@ -129,19 +135,17 @@ void zj_restart_set_time(uint32_t time)
  */
 int zj_restart_system(void)
 {
-
-	 if(g_reboot_timer == NULL){
-
-		  g_reboot_timer = xTimerCreate("rst_tmr", g_restart_time / portTICK_PERIOD_MS, 0,(void *)0,(void *)reboot_timer_cb);
-	    xTimerStart(g_reboot_timer,0);
-   }
-	return 0;
+    static TimerHandle_t g_reboot_timer;
+    if(g_reboot_timer == NULL) {
+        g_reboot_timer = xTimerCreate("rst_tmr", g_restart_time / portTICK_PERIOD_MS, 0,(void *)0,(void *)reboot_timer_cb);
+        xTimerStart(g_reboot_timer,0);
+    }
+    return 0;
 }
-
 
 void zj_scan_router(zj_adapter_evt_t evt)
 {
-
+    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
     // uint16_t ap_count = 0;
     // uint8_t real_ap_count = 0;
     // esp_wifi_scan_start(NULL, true);
@@ -215,82 +219,118 @@ void zj_scan_router(zj_adapter_evt_t evt)
 
 void zj_wifi_get_ip_info(char *ip_addr)
 {
-//   esp_netif_t *ifx = ap_netif;
-//   esp_netif_ip_info_t ip_info;
-//   wifi_mode_t mode;
-//   esp_wifi_get_mode(&mode);
-//   if (WIFI_MODE_STA == mode) {
-  	
-//      ifx = sta_netif;
-//   }
-//   esp_netif_get_ip_info(ifx, &ip_info);
-//   sprintf(ip_addr, "%s", ip4addr_ntoa((ip4_addr_t *)&ip_info.ip.addr));
+    tcpip_ip_info_t ip;
+
+    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
+
+    netdev_get_ip_info(netdev_get_active(), &ip);
+    sprintf(ip_addr, "%s", ip4addr_ntoa((ip4_addr_t *)&ip.ip.addr));
 }
 
 void zj_wifi_get_gateway(char *ip_addr)
 {
-//   esp_netif_t *ifx = sta_netif;
-//   esp_netif_ip_info_t ip_info;
-//   esp_netif_get_ip_info(ifx, &ip_info);
-//   sprintf(ip_addr, "%s", ip4addr_ntoa((ip4_addr_t *)&ip_info.gw.addr));
+    tcpip_ip_info_t ip;
+
+    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
+
+    netdev_get_ip_info(netdev_get_active(), &ip);
+    sprintf(ip_addr, "%s", ip4addr_ntoa((ip4_addr_t *)&ip.gw.addr));
 }
 
 ip_addr_t zj_wifi_get_LAN_broadcast_addr()
 {
-    // esp_netif_t *ifx = sta_netif;
-    // esp_netif_ip_info_t ip_info;
-    // esp_netif_get_ip_info(ifx, &ip_info);
+    tcpip_ip_info_t ip_info;
+
+    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
+
+    netdev_get_ip_info(netdev_get_active(), &ip_info);
 
     ip4_addr_t ip;
-    // ip.addr = ip_info.ip.addr; 
-    // ip.addr |= 0xFF000000; 
+    ip.addr = ip_info.ip.addr; 
+    ip.addr |= 0xFF000000; 
     return ip;
 }
 
 ip_addr_t zj_wifi_get_ip_address()
 {
-    // esp_netif_t *ifx = sta_netif;
-    // esp_netif_ip_info_t ip_info;
-    // esp_netif_get_ip_info(ifx, &ip_info);
+    tcpip_ip_info_t ip_info;
+
+    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
+
+    netdev_get_ip_info(netdev_get_active(), &ip_info);
 
     ip4_addr_t ip;
-    // ip.addr = ip_info.ip.addr;
+    ip.addr = ip_info.ip.addr;
     return ip;
 }
 
 void zj_wifi_set_ip_info(char *ip_addr)
 {
-
+    ZJ_LOG("[%s:%d] %s\r\n", __func__, __LINE__, ip_addr);
 }
 
 int zj_wifi_get_mac_info(char *mac_str)
 {
-//   uint8_t mac_addr[6] = {0};
-//   esp_wifi_get_mac(ESP_IF_WIFI_AP,mac_addr);
-//   sprintf(mac_str,"%02X%02X%02X%02X%02X%02X",mac_addr[0],mac_addr[1],mac_addr[2],mac_addr[3],mac_addr[4],mac_addr[5]);
-  return 0;
+    uint8_t mac_addr[6] = {0};
+    wifi_mode_t mode = wifi_current_mode_get();
+    if (mode == WIFI_MODE_STATION) {
+        wifi_get_macaddr(STATION_IF, mac_addr);
+    } else {
+        wifi_get_macaddr(SOFT_AP_IF, mac_addr);
+    }
+
+    sprintf(mac_str, "%02X%02X%02X%02X%02X%02X",
+        mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+    return 0;
 }
 
 int zj_wifi_get_mac_hex(uint8_t *mac_hex)
 {
-//   esp_wifi_get_mac(ESP_IF_WIFI_AP, mac_hex);
-  return 0;
+    wifi_mode_t mode = wifi_current_mode_get();
+    if (mode == WIFI_MODE_STATION) {
+        wifi_get_macaddr(STATION_IF, mac_hex);
+    } else {
+        wifi_get_macaddr(SOFT_AP_IF, mac_hex);
+    }
+    return 0;
 }
-
 
 int zj_wifi_get_state()
 {
-	return g_wifi_state;
+    enum WIFI_STATE_ENUM_LIST state = WIFI_STATE_UNKNOWN;
+    wifi_sta_status_t status = WIFI_STA_STATUS_STARTUP;
+    wifi_get_sta_status(&status);
+    switch (status)
+    {
+    case WIFI_STA_STATUS_STARTUP:
+        state = WIFI_STATE_IDLE;
+        break;
+    case WIFI_STA_STATUS_SCANING:
+        state = WIFI_STATE_IDLE;
+        break;
+    case WIFI_STA_STATUS_CONNECTING:
+        state = WIFI_STATE_CONNECTING;
+        break;
+    case WIFI_STA_STATUS_CONNECTED:
+        state = WIFI_STATE_CONNECTED_IP_GETTING;
+        break;
+    case WIFI_STA_STATUS_DISCONNECTING:
+    case WIFI_STA_STATUS_DISCONNECTED:
+        state = WIFI_STATE_DISCONNECT;
+        break;
+    default:
+        break;
+    }
+    //int     wifi_get_sta_conn_fail_reason(wifi_sta_connect_failed_reason_t *reason);
+    return g_wifi_state;
 }
 
 int zj_get_ap_rssi()
 {
-    // wifi_ap_record_t ap_info;
-    // esp_wifi_sta_get_ap_info(&ap_info);
-	// return ap_info.rssi;
-    return 0;
+    int8_t rssi = 0;
+    wifi_sta_get_rssi(&rssi);
+    return (int)rssi;
 }
-
 
 uint8_t zj_get_lan_code()
 {

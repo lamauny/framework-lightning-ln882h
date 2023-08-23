@@ -2,6 +2,7 @@
 // #include "esp_app_format.h"
 // #include "esp_flash_partitions.h"
 // #include "esp_ota_ops.h"
+#include "debug/log.h"
 
 #define HASH_LEN 32 /* SHA-256 digest length */
 
@@ -10,17 +11,6 @@ extern void zj_adapter_init();;
 extern void sys_dbg_init(); 
 extern void net_type_init();
 extern void zj_watchdog_start();
-
-static void print_sha256 (const uint8_t *image_hash, const char *label)
-{
-    // char hash_print[HASH_LEN * 2 + 1];
-    // hash_print[HASH_LEN * 2] = 0;
-    // for (int i = 0; i < HASH_LEN; ++i) {
-    //     sprintf(&hash_print[i * 2], "%02x", image_hash[i]);
-    // }
-    // ESP_LOGI("ota", "%s: %s", label, hash_print);
-}
-
 
 void ota_boot_init()
 {
@@ -58,6 +48,7 @@ void ota_boot_init()
 //     }
 //     #endif
 }
+
 // extern esp_netif_t *sta_netif;
 // extern esp_netif_t *ap_netif;
 void zengge_common_main_init()
@@ -68,17 +59,17 @@ void zengge_common_main_init()
     // ap_netif = esp_netif_create_default_wifi_ap();
     // wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     // ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-   
+
     // aes_key_init();
     // zj_adapter_init();/* 适配器初始化初始化 */
     // net_type_init();  /* 网络类型初始化 */
     // #ifdef CONFIG_WIFI_BEST_PERFORMANCE_OPTION
     // extern uint8_t net_type_get_config();
     // if(net_type_get_config() != 0){
-        
+
     //     esp_wifi_set_ps(WIFI_PS_NONE);
     //     ESP_LOGW("ps","WIFI_PS_NONE");
     // }
     // #endif
-    // zj_watchdog_start();
+    zj_watchdog_start();
 }

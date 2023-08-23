@@ -38,15 +38,9 @@ static void fetch_bulid_time(char *time)
 
 
   sprintf(time,"%s%02d%s",year,mon,day);
-os_printf("\n\nbulid time %s\nlight version %s\n\n",time,APP_VERSION_STRING);
+  os_printf("\n\nbulid time %s\nlight version %s\n\n",time,APP_VERSION_STRING);
 }
 
-
-#if defined(APPCONFIG_OUTPUT_DRV_IIC) 
-
-
-
-#endif
 void ZG_light_system_start(void)
 {
     char build_time[9] = {0};
@@ -164,5 +158,3 @@ void ZG_light_system_start(void)
     light_dynamic_sync_init();
     #endif
 }
-
-
