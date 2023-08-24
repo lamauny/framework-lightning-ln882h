@@ -50,6 +50,7 @@ static void wifi_connect_failed_cb(void * arg)
 {
     wifi_sta_connect_failed_reason_t reason = *(wifi_sta_connect_failed_reason_t*)arg;
     LOG(LOG_LVL_INFO, "############ wifi_connect_failed!, reason = %d, please retry. ############\r\n", reason);
+    zj_adapter_post_event(ADAPT_EVT_WIFI_DISCONNECTED,NULL,NULL,0);
 }
 
 static void wifi_disconnect_cb(void *arg)
@@ -57,6 +58,7 @@ static void wifi_disconnect_cb(void *arg)
     LN_UNUSED(arg);
     g_wifi_state = WIFI_STATE_IDLE;
     // wifi_set_allow_cpu_sleep_flag(0);
+    zj_adapter_post_event(ADAPT_EVT_WIFI_DISCONNECTED,NULL,NULL,0);
 }
 
 static void wifi_connected_cb(void *arg)
@@ -65,10 +67,11 @@ static void wifi_connected_cb(void *arg)
     g_wifi_state = WIFI_STATE_CONNECTED_IP_GETTING;
 }
 
-static void tuya_wifi_get_ip_cb(struct netif *nif)
+static void wifi_get_ip_cb(struct netif *nif)
 {
     LN_UNUSED(nif);
     g_wifi_state = WIFI_STATE_CONNECTED_IP_GOT;
+    zj_adapter_post_event(ADAPT_EVT_WIFI_CONNECTED,NULL,NULL,0);
 }
 
 static void ap_startup_cb(void *arg)
@@ -148,7 +151,7 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
     wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECT_FAILED, &wifi_connect_failed_cb);
     wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_DISCONNECTED, wifi_disconnect_cb);
     wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECTED, wifi_connected_cb);
-    netdev_get_ip_cb_set(tuya_wifi_get_ip_cb);
+    netdev_get_ip_cb_set(wifi_get_ip_cb);
 
 #if (WIFI_USER_USE_WPA3 == 1)
     extern void ln_wpa_sae_enable(void);
@@ -460,7 +463,7 @@ void zj_scan_router(zj_adapter_evt_t evt)
                     info->bssid[0], info->bssid[1], info->bssid[2], info->bssid[3], info->bssid[4], info->bssid[5]);
             }
 
-            // zj_adapter_post_event(evt, wifi_scan_buff, NULL, node_count);
+            zj_adapter_post_event(evt, wifi_scan_buff, NULL, node_count);
 
 __finish:
             //4. delete sem, callback
@@ -687,6 +690,22 @@ void zj_wifi_drv_init()
             OS_TimerStart(&s_wifi_temp_cal_timer);
         }
     }
+
+    {
+        uint8_t mac_addr[MAC_ADDRESS_LEN];
+        sysparam_sta_mac_get(mac_addr);
+        netdev_set_state(NETIF_IDX_STA, NETDEV_DOWN);
+        netdev_set_mac_addr(NETIF_IDX_STA, mac_addr);
+        netdev_set_active(NETIF_IDX_STA);
+
+#if (WIFI_USER_USE_WPA3 == 1)
+    extern void ln_wpa_sae_enable(void);
+    ln_wpa_sae_enable();
+#endif
+
+        wifi_sta_start(mac_addr, PM_WIFI_DEFAULT_PS_MODE);
+    }
+
     ZJ_LOG("LN wifi init ok, calibration pass!\r\n");
     zj_adapter_post_event(ADAPT_EVT_WIFI_INIT_DONE,NULL,NULL,0);
 

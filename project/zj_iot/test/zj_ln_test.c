@@ -24,8 +24,8 @@
 #include "zj_adapt_api.h"
 
 #define ZJ_LOG_TEST
-// #define ZJ_RTC_TEST
-// #define LN_LINUX_COMPAT_TEST
+#define ZJ_RTC_TEST
+#define LN_LINUX_COMPAT_TEST
 #define ZJ_WIFI_TEST
 
 #ifdef ZJ_LOG_TEST
@@ -143,7 +143,7 @@ static void zj_rtc_test(void)
             zj_rtc_set_time(&now);
         }
 
-        while (1)
+        for (int i = 0; i < 10; i++)
         {
             zj_rtc_get_time(&test);
             timestamp = zj_get_current_timestamp();
