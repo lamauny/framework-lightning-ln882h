@@ -21,10 +21,12 @@
 #include "zj_adapt_config.h"
 #include "ZG_system.h"
 #include "sys/time.h"
+#include "zj_adapt_api.h"
 
 #define ZJ_LOG_TEST
 // #define ZJ_RTC_TEST
-#define LN_LINUX_COMPAT_TEST
+// #define LN_LINUX_COMPAT_TEST
+#define ZJ_WIFI_TEST
 
 #ifdef ZJ_LOG_TEST
 static void zj_log_test(void)
@@ -169,5 +171,19 @@ void zj_ln_adapt_test(void)
 
 #ifdef ZJ_RTC_TEST
     zj_rtc_test();
+#endif
+
+#ifdef ZJ_WIFI_TEST
+    #define TEST_SSID "MurphyTest"
+    #define TEST_PWD "12345678"
+    extern void zj_wifi_drv_init();
+    OS_MsDelay(1000);
+    extern void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_len);
+    zj_wifi_STA_Start(TEST_SSID, strlen(TEST_SSID), TEST_PWD, strlen(TEST_PWD));
+    OS_MsDelay(8000);
+    while(1) {
+        zj_scan_router(ADAPT_EVT_BLUFI_SCAN);
+        OS_MsDelay(10000);
+    }
 #endif
 }

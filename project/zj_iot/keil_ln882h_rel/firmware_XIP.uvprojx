@@ -608,6 +608,11 @@
               <FileType>1</FileType>
               <FilePath>..\app\usr_ble_app.c</FilePath>
             </File>
+            <File>
+              <FileName>zj_ln_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\test\zj_ln_test.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

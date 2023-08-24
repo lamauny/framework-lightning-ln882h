@@ -534,5 +534,5 @@ int zj_ota_verify_image()
  */
 void zj_ota_reboot()
 {
-    // esp_restart();
+    ln_chip_reboot();
 }

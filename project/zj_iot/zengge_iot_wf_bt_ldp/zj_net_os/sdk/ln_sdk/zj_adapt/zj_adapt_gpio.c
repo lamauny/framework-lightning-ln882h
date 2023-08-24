@@ -9,6 +9,11 @@
 #undef ZJ_LOG
 #define ZJ_LOG(fmt, ...)  LOG(ZJ_LOCAL_LOG_LVL, "["TAG"] "fmt, ##__VA_ARGS__)
 
+/**
+ * GPIO mapping
+ * 
+*/
+
 void zj_gpio_init(uint8_t io,zj_gpio_t status)
 {
     gpio_init_t_def gpio_init;

@@ -20,7 +20,6 @@
 #include "usr_app.h"
 #include "ln_ble_app_default_cfg.h"
 
-
 int main (int argc, char* argv[])
 {
     LN_UNUSED(argc);
@@ -47,7 +46,7 @@ int main (int argc, char* argv[])
 
     //4.cm backtrace
     cm_backtrace_init("combo_mcu_basic_example", "hw", "sw");
-    LOG(LOG_LVL_INFO, "------  combo_mcu_basic_example  ------\r\n");
+    LOG(LOG_LVL_INFO, "------  zj iot project  ------\r\n");
 
     //5. init NVDS&KV
     if (NVDS_ERR_OK != ln_nvds_init(NVDS_SPACE_OFFSET)) {
@@ -61,12 +60,12 @@ int main (int argc, char* argv[])
     //6.init system parameter
     sysparam_integrity_check_all();
 
-    //7.rf preprocess,img cal
-    wifi_rf_calibration();
+    // //7.rf preprocess,img cal
+    // wifi_rf_calibration();
 
-    //8.Init wifi stack.
-    wifi_init();
-    wlib_pvtcmd_output_cb_set(ln_at_vprintf);
+    // //8.Init wifi stack.
+    // wifi_init();
+    // wlib_pvtcmd_output_cb_set(ln_at_vprintf);
 
     //9.Init lwip stack.
     lwip_tcpip_init();

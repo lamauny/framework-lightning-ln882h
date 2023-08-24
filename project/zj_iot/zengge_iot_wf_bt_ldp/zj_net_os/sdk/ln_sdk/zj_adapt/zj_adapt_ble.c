@@ -3,16 +3,7 @@
 #include "zj_adapt_config.h"
 #include <stdbool.h>
 /* BLE */
-// #include "nimble/nimble_port.h"
-// #include "nimble/nimble_port_freertos.h"
-// #include "host/ble_hs.h"
-// #include "host/util/util.h"
-// #include "console/console.h"
-// #include "services/gap/ble_svc_gap.h"
-// #include "host/ble_uuid.h"
-// #include "services/gatt/ble_svc_gatt.h"
-// #include "services/ans/ble_svc_ans.h"
-// #include "esp_log.h"
+
 
 #define ADV_SCAN_UNIT(_ms) ((_ms) * 8 / 5)
 #define SCAN_INTERVAL_MS 70
