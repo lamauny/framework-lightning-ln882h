@@ -91,11 +91,11 @@ extern uint32_t esp_timer_get_time(void);
 #define PORT_CONFIG_OTA_IMAGE_NAME            "esp_ota.bin.xz.packed"                      /* 适配ota文件名 */
 
 
-#define PORT_CONFIG_PWM_RED_CHANNEL           3                                 /*适配pwm red channel*/
-#define PORT_CONFIG_PWM_GREEN_CHANNEL         2                                 /*适配pwm green channel*/
-#define PORT_CONFIG_PWM_BLUE_CHANNEL          1                                 /*适配pwm blue channel*/
-#define PORT_CONFIG_PWM_WARM_CHANNEL          4
-#define PORT_CONFIG_PWM_COLD_CHANNEL          0
+#define PORT_CONFIG_PWM_RED_CHANNEL           0                                 /*适配pwm red channel*/
+#define PORT_CONFIG_PWM_GREEN_CHANNEL         1                                 /*适配pwm green channel*/
+#define PORT_CONFIG_PWM_BLUE_CHANNEL          2                                 /*适配pwm blue channel*/
+#define PORT_CONFIG_PWM_WARM_CHANNEL          3
+#define PORT_CONFIG_PWM_COLD_CHANNEL          4
 
 #define PORT_CONFIG_IIC_SDA_PIN2              
 #define PORT_CONFIG_IIC_SCL_PIN2              
