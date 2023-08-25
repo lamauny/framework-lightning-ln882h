@@ -97,11 +97,11 @@ extern uint32_t esp_timer_get_time(void);
 #define PORT_CONFIG_PWM_WARM_CHANNEL          4
 #define PORT_CONFIG_PWM_COLD_CHANNEL          0
 
-#define PORT_CONFIG_IIC_SDA_PIN2             
-#define PORT_CONFIG_IIC_SCL_PIN2            
+#define PORT_CONFIG_IIC_SDA_PIN2              
+#define PORT_CONFIG_IIC_SCL_PIN2              
 
-#define PORT_CONFIG_IIC_SDA_PIN               8
-#define PORT_CONFIG_IIC_SCL_PIN               9
+#define PORT_CONFIG_IIC_SDA_PIN               105 // GPIOA5
+#define PORT_CONFIG_IIC_SCL_PIN               106 // GPIOA6
 
 /*IIC电流适配 */
 #define IIC_RGB_7W_mA                         RGB_19mA
@@ -120,29 +120,29 @@ extern uint32_t esp_timer_get_time(void);
 #define IIC_WY_CANDLE_mA                      WY_20mA
 
 /*  插座适配IO */
-#define PORT_CONFIG_PLUG_OUT_GPIO                     
-#define PORT_CONFIG_PLUG_LED_RED             
-#define PORT_CONFIG_PLUG_LED_BLUE            
-#define PORT_CONFIG_PLUG_KEY_GPIO           
-#define PORT_CONFIG_PLUG_SWITCH_GPIO         
-#define PORT_CONFIG_USB1_GPIO                
-#define PORT_CONFIG_USB2_GPIO                
+#define PORT_CONFIG_PLUG_OUT_GPIO             206
+#define PORT_CONFIG_PLUG_LED_RED              207
+#define PORT_CONFIG_PLUG_LED_BLUE             112
+#define PORT_CONFIG_PLUG_KEY_GPIO             111
+#define PORT_CONFIG_PLUG_SWITCH_GPIO          110
+#define PORT_CONFIG_USB1_GPIO                 
+#define PORT_CONFIG_USB2_GPIO                 
 
 /*  落地灯适配IO */
-#define PORT_CONFIG_LIGHT_KEY_GPIO            26  
+#define PORT_CONFIG_LIGHT_KEY_GPIO            203
 
 /*  圣诞灯适配IO */
-#define PORT_CONFIG_XMAS_KEY_GPIO             
+#define PORT_CONFIG_XMAS_KEY_GPIO             204
 
 /*  高压模块适配IO */
-#define PORT_CONFIG_HV_WAVE_GPIO             
+#define PORT_CONFIG_HV_WAVE_GPIO              205
 
 /* plant light IO */
-#define PORT_CONFIG_PLANT_KEY1_GPIO            
-#define PORT_CONFIG_PLANT_KEY2_GPIO            
-#define PORT_CONFIG_PLANT_KEY3_GPIO                   
-#define PORT_CONFIG_PLANT_KEY4_GPIO                  
-#define PORT_CONFIG_PLANT_KEY5_GPIO           
+#define PORT_CONFIG_PLANT_KEY1_GPIO           100
+#define PORT_CONFIG_PLANT_KEY2_GPIO           101
+#define PORT_CONFIG_PLANT_KEY3_GPIO           104
+#define PORT_CONFIG_PLANT_KEY4_GPIO           107
+#define PORT_CONFIG_PLANT_KEY5_GPIO           208
 
 #define USE_BT_CONFIG_NET                      1
 #define IS_LN_PLATFORM

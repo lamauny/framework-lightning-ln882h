@@ -27,6 +27,7 @@
 #define ZJ_RTC_TEST
 #define LN_LINUX_COMPAT_TEST
 #define ZJ_WIFI_TEST
+#define ZJ_GPIO_TEST
 
 #ifdef ZJ_LOG_TEST
 static void zj_log_test(void)
@@ -159,6 +160,21 @@ static void zj_rtc_test(void)
 }
 #endif
 
+#ifdef ZJ_GPIO_TEST
+#include "zj_adapt_api.h"
+#include "zj_adapt_config.h"
+
+void zj_gpio_test(void)
+{
+    zj_gpio_init(PORT_CONFIG_PLUG_LED_RED, ZJ_GPIO_OUTPUT);
+    zj_gpio_output_set(PORT_CONFIG_PLUG_LED_RED, 0);
+    OS_MsDelay(100);
+    zj_gpio_output_set(PORT_CONFIG_PLUG_LED_RED, 1);
+    OS_MsDelay(100);
+    zj_gpio_output_set(PORT_CONFIG_PLUG_LED_RED, 0);
+}
+#endif
+
 void zj_ln_adapt_test(void)
 {
 #ifdef ZJ_LOG_TEST
@@ -171,6 +187,10 @@ void zj_ln_adapt_test(void)
 
 #ifdef ZJ_RTC_TEST
     zj_rtc_test();
+#endif
+
+#ifdef ZJ_GPIO_TEST
+    zj_gpio_test();
 #endif
 
 #ifdef ZJ_WIFI_TEST
