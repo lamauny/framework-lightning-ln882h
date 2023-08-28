@@ -7,6 +7,7 @@
 #include "ln_kv_api.h"
 #include "hal/hal_wdt.h"
 #include "ln882h.h"
+#include "ln_utils.h"
 
 #define    TAG    "SYSAPT"
 #define    ZJ_LOCAL_LOG_LVL LOG_LVL_INFO
@@ -14,7 +15,7 @@
 #undef ZJ_LOG
 #define ZJ_LOG(fmt, ...)  LOG(ZJ_LOCAL_LOG_LVL, "["TAG"]"fmt, ##__VA_ARGS__)
 
-#define STORAGE_NAMESPACE "storage"
+#define ZJ_ADAPT_KV_USE_LN_API
 
 uint32_t esp_timer_get_time(void)
 {
@@ -47,24 +48,15 @@ void zj_flash_erase(uint32_t addr,uint32_t size)
     hal_flash_erase(addr, size);
 }
 
+#ifdef ZJ_ADAPT_KV_USE_LN_API
 void zj_restore_userdata()
 {
-    // nvs_handle_t my_handle;
-    // esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
-    // if (err != ESP_OK) return;
-    // nvs_erase_all(my_handle);
-    ZJ_LOG("[%s:%d] Murphy TODOs\r\n", __func__, __LINE__);
-}
-
-void hal_reboot()
-{
-    ln_chip_reboot();
+    ZJ_LOG("[%s:%d] Murphy TODOs: Not support\r\n", __func__, __LINE__);
 }
 
 void zj_userdata_delete_key(char *key)
 {
     ln_kv_del((const char*)key);
-    // zj_adapter_post_event(ADAPT_EVT_STORE,NULL,NULL,0);
 }
 
 /**
@@ -81,7 +73,7 @@ int zj_userdata_write(char *key, uint8_t *dat,int len)
         ZJ_LOG("kv set <%s> failed!\r\n", key);
         return 0;
     }
-    // zj_adapter_post_event(ADAPT_EVT_STORE,NULL,NULL,0);
+    zj_adapter_post_event(ADAPT_EVT_STORE,NULL,NULL,0);
     return len;
 }
 
@@ -102,9 +94,34 @@ int zj_userdata_read(char *key, uint8_t *dat,int len)
     }
     return v_len;
 }
+#endif
 
+void hal_reboot()
+{
+    ln_chip_reboot();
+}
 
 static uint8_t ln_wdt_is_inited = 0;
+static volatile uint8_t ln_wdt_is_enabled = 0;
+static OS_Thread_t g_adapt_wdt_thr = {.handle = NULL};
+
+static void local_adapt_wdt_entry(void *arg)
+{
+    LN_UNUSED(arg);
+    while(1) {
+        if (ln_wdt_is_enabled == 0) { /* wdt is not enabled */
+            OS_MsDelay(5000); /* The timeout of the wdt needs to be greater than 5s */
+        } else {
+            hal_wdt_cnt_restart(WDT_BASE); /* feed dog */
+            OS_MsDelay(500);
+        }
+    }
+}
+
+void WDT_IRQHandler()
+{
+
+}
 
 /**
  * @brief 开启看门狗
@@ -122,10 +139,21 @@ void zj_watchdog_start()
         wdt_init.top = WDT_TOP_VALUE_10;         //设置看门狗计数器的值,当TOP=1时，对应计数器的值为0x1FF，而看门狗是用的时钟是一个单独的32k时钟，
                                                 //所以此时的喂狗时间必须在 (1/32k) * 0x1FF 内。
         hal_wdt_init(WDT_BASE, &wdt_init);
+
+        NVIC_SetPriority(WDT_IRQn,     4);
+        NVIC_EnableIRQ(WDT_IRQn);
+
         hal_wdt_en(WDT_BASE,HAL_ENABLE);
+        hal_wdt_cnt_restart(WDT_BASE); /* feed dog */
         ln_wdt_is_inited = 1;
+        ln_wdt_is_enabled = 1;
     } else {
         hal_wdt_en(WDT_BASE, HAL_ENABLE);
+        ln_wdt_is_enabled = 1;
+    }
+
+    if (g_adapt_wdt_thr.handle == NULL) {
+        OS_ThreadCreate(&g_adapt_wdt_thr, "wdtT", local_adapt_wdt_entry, NULL, PORT_CONFIG_ZG_WATCHDOG_TASK_PRIO, 256);
     }
 }
 
@@ -142,7 +170,8 @@ int zj_watchdog_stop(uint32_t time)
     }
 
     hal_wdt_en(WDT_BASE, HAL_DISABLE);
-    hal_wdt_deinit();
+    // hal_wdt_deinit();
+    ln_wdt_is_enabled = 0;
 
     return 0;
 }

@@ -25,10 +25,14 @@ uint32_t  mktimev(struct rtc_time *tm)
         .tm_min = tm->tm_min,
         .tm_hour = tm->tm_hour,
         .tm_mday = tm->tm_mday,
-        .tm_mon = tm->tm_mon,   /* - 1 */
-        .tm_year = tm->tm_year, /* - 1900 */
+        .tm_mon = tm->tm_mon - 1,   /* - 1 */
+        .tm_year = tm->tm_year -1900, /* - 1900 */
         .tm_wday = tm->tm_wday  /* 7 --> 0 */
     };
+
+    if (tm->tm_wday == 7) {
+        time_new.tm_wday = 0;
+    }
 
     return (uint32_t)(mktime(&time_new));
 }
@@ -50,10 +54,14 @@ void  zj_rtc_set_time(struct rtc_time *time_set)
         .tm_min = time_set->tm_min,
         .tm_hour = time_set->tm_hour,
         .tm_mday = time_set->tm_mday,
-        .tm_mon = time_set->tm_mon,  /* - 1 */
-        .tm_year = time_set->tm_year,/* - 1900 */
+        .tm_mon = time_set->tm_mon - 1,  /* - 1 */
+        .tm_year = time_set->tm_year - 1900,/* - 1900 */
         .tm_wday = time_set->tm_wday /* 7 --> 0 */
     };
+
+    if (time_set->tm_wday == 7) {
+        time_new.tm_wday = 0;
+    }
 
     init_time = mktime(&time_new);
     now.tv_sec = init_time;
