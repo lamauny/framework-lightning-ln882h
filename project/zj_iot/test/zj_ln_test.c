@@ -24,10 +24,11 @@
 #include "zj_adapt_api.h"
 
 #define ZJ_LOG_TEST
-#define ZJ_RTC_TEST
-#define LN_LINUX_COMPAT_TEST
-#define ZJ_WIFI_TEST
+// #define ZJ_RTC_TEST
+// #define LN_LINUX_COMPAT_TEST
+// #define ZJ_WIFI_TEST
 #define ZJ_GPIO_TEST
+#define ZJ_USER_DATA_TEST
 
 #ifdef ZJ_LOG_TEST
 static void zj_log_test(void)
@@ -175,6 +176,53 @@ void zj_gpio_test(void)
 }
 #endif
 
+#ifdef ZJ_USER_DATA_TEST
+#define ZJ_TEST_KV_KEY "test_key"
+#define ZJ_TEST_KV_VAL_STR "12345678"
+
+void zj_user_data_kv_test(void)
+{
+    static uint8_t buffer[128];
+    static uint8_t mac_hex[6] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+
+    if (0 == zj_userdata_read(ZJ_TEST_KV_KEY, buffer, sizeof(buffer))) {
+        LOG(LOG_LVL_INFO, "=== read error <%d> ===\r\n", __LINE__);
+    } else {
+        LOG(LOG_LVL_INFO, "=== read Ok <%s> ===\r\n", buffer);
+    }
+
+    if (0 == zj_userdata_write(ZJ_TEST_KV_KEY, ZJ_TEST_KV_VAL_STR, strlen(ZJ_TEST_KV_VAL_STR))) {
+        LOG(LOG_LVL_INFO, "=== write error <%d> ===\r\n", __LINE__);
+    }
+
+    if (0 == zj_userdata_read(ZJ_TEST_KV_KEY, buffer, sizeof(buffer))) {
+        LOG(LOG_LVL_INFO, "=== read error <%d> ===\r\n", __LINE__);
+    } else {
+        LOG(LOG_LVL_INFO, "=== read Ok <%s> ===\r\n", buffer);
+    }
+
+    zj_userdata_delete_key(ZJ_TEST_KV_KEY);
+    if (0 == zj_userdata_read(ZJ_TEST_KV_KEY, buffer, sizeof(buffer))) {
+        LOG(LOG_LVL_INFO, "=== read error <%d> ===\r\n", __LINE__);
+    } else {
+        LOG(LOG_LVL_INFO, "=== read Ok <%s> ===\r\n", buffer);
+    }
+
+    if (0 == zj_userdata_write(ZJ_TEST_KV_KEY, mac_hex, sizeof(mac_hex))) {
+        LOG(LOG_LVL_INFO, "=== write error <%d> ===\r\n", __LINE__);
+    }
+
+    memset(buffer, 0x0, sizeof(buffer));
+
+    if (0 == zj_userdata_read(ZJ_TEST_KV_KEY, buffer, sizeof(buffer))) {
+        LOG(LOG_LVL_INFO, "=== read error <%d> ===\r\n", __LINE__);
+    } else {
+        hexdump(0, "mac addr", buffer, sizeof(buffer));
+    }
+    zj_restore_userdata();
+}
+#endif
+
 void zj_ln_adapt_test(void)
 {
 #ifdef ZJ_LOG_TEST
@@ -205,5 +253,9 @@ void zj_ln_adapt_test(void)
         zj_scan_router(ADAPT_EVT_BLUFI_SCAN);
         OS_MsDelay(10000);
     }
+#endif
+
+#ifdef ZJ_USER_DATA_TEST
+    zj_user_data_kv_test();
 #endif
 }

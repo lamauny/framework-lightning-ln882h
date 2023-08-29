@@ -32,10 +32,10 @@ void zj_gpio_init(uint8_t io,zj_gpio_t status)
     memset(&gpio_init, 0, sizeof(gpio_init));
     
     if (io >= 200) {
-        gpio_init.pin = io - 200;
+        gpio_init.pin = 1 << (io - 200);
         gpio_base = GPIOB_BASE;
     } else {
-        gpio_init.pin = io - 100;
+        gpio_init.pin = 1 << (io - 100);
         gpio_base = GPIOA_BASE;
     }
 

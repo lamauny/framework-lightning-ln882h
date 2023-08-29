@@ -8,6 +8,7 @@
 #include "hal/hal_wdt.h"
 #include "ln882h.h"
 #include "ln_utils.h"
+#include "easyflash.h"
 
 #define    TAG    "SYSAPT"
 #define    ZJ_LOCAL_LOG_LVL LOG_LVL_INFO
@@ -15,7 +16,9 @@
 #undef ZJ_LOG
 #define ZJ_LOG(fmt, ...)  LOG(ZJ_LOCAL_LOG_LVL, "["TAG"]"fmt, ##__VA_ARGS__)
 
-#define ZJ_ADAPT_KV_USE_LN_API
+static uint8_t ln_wdt_is_inited = 0;
+static volatile uint8_t ln_wdt_is_enabled = 0;
+static OS_Thread_t g_adapt_wdt_thr = {.handle = NULL};
 
 uint32_t esp_timer_get_time(void)
 {
@@ -48,15 +51,21 @@ void zj_flash_erase(uint32_t addr,uint32_t size)
     hal_flash_erase(addr, size);
 }
 
-#ifdef ZJ_ADAPT_KV_USE_LN_API
 void zj_restore_userdata()
 {
-    ZJ_LOG("[%s:%d] Murphy TODOs: Not support\r\n", __func__, __LINE__);
+    if (ln_wdt_is_enabled) {
+        hal_wdt_cnt_restart(WDT_BASE); /* feed dog */
+    }
+    hal_flash_erase(PORT_CONFIG_USER_DATA_FLASH_ADDR, PORT_CONFIG_USER_DATA_SIZE);
+    if (ln_wdt_is_enabled) {
+        hal_wdt_cnt_restart(WDT_BASE); /* feed dog */
+    }
+    zj_restart_system();
 }
 
 void zj_userdata_delete_key(char *key)
 {
-    ln_kv_del((const char*)key);
+    ef_del_and_save_env((const char*)key);
 }
 
 /**
@@ -69,7 +78,7 @@ void zj_userdata_delete_key(char *key)
  */
 int zj_userdata_write(char *key, uint8_t *dat,int len)
 {
-    if (ln_kv_set((const char *)key, (const char *)dat, len) != KV_ERR_NONE) {
+    if (ef_set_env_blob((const char *)key, (const void *)dat, len) != EF_NO_ERR) {
         ZJ_LOG("kv set <%s> failed!\r\n", key);
         return 0;
     }
@@ -88,22 +97,15 @@ int zj_userdata_write(char *key, uint8_t *dat,int len)
 int zj_userdata_read(char *key, uint8_t *dat,int len)
 {
     size_t v_len = 0;
-    if (ln_kv_get((const char*)key, dat, len, &v_len) != KV_ERR_NONE) {
-        ZJ_LOG("kv get <%s> failed!\r\n", key);
-        return 0;
-    }
+    ef_get_env_blob((const char*)key, dat, len, &v_len);
+    ZJ_LOG("kv read <%s>, len:%d!\r\n", key, v_len);
     return v_len;
 }
-#endif
 
 void hal_reboot()
 {
     ln_chip_reboot();
 }
-
-static uint8_t ln_wdt_is_inited = 0;
-static volatile uint8_t ln_wdt_is_enabled = 0;
-static OS_Thread_t g_adapt_wdt_thr = {.handle = NULL};
 
 static void local_adapt_wdt_entry(void *arg)
 {

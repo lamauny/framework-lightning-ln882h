@@ -17,6 +17,7 @@
 #include "ln_misc.h"
 #include "ln882h.h"
 #include "usr_app.h"
+#include "easyflash.h"
 
 static OS_Thread_t g_zj_main_thread;
 static OS_Thread_t g_temp_thread;
@@ -37,6 +38,7 @@ extern void zj_watchdog_start();
 static void zj_main_entry(void *params)
 {
     ln_pm_sleep_mode_set(ACTIVE);
+    easyflash_init();
 #ifndef ZJ_TEST_ONLY
     ZG_light_system_start();/*灯光初始化 */
     aes_key_init();
