@@ -26,9 +26,16 @@
 #define ZJ_LOG_TEST
 // #define ZJ_RTC_TEST
 // #define LN_LINUX_COMPAT_TEST
-// #define ZJ_WIFI_TEST
-#define ZJ_GPIO_TEST
-#define ZJ_USER_DATA_TEST
+#define ZJ_WIFI_TEST
+// #define ZJ_GPIO_TEST
+// #define ZJ_USER_DATA_TEST
+#define ZJ_OTA_TEST
+
+#ifdef ZJ_OTA_TEST
+#ifndef ZJ_WIFI_TEST
+#define ZJ_WIFI_TEST
+#endif
+#endif
 
 #ifdef ZJ_LOG_TEST
 static void zj_log_test(void)
@@ -223,6 +230,19 @@ void zj_user_data_kv_test(void)
 }
 #endif
 
+#ifdef ZJ_OTA_TEST
+void zj_ota_test(void)
+{
+#define ZJ_OTA_TEST_URL "http://192.168.1.103/flashimage-ota-xz-v0.1.bin"
+    int ret = 0;
+    OS_LOGI("OTA Test\r\n", "URL:%s\r\n", ZJ_OTA_TEST_URL);
+    ret = zj_ota_get_image(ZJ_OTA_TEST_URL);
+    if (ret != 0) {
+        LOG(LOG_LVL_INFO, "zj ota get image failed\r\n");
+    }
+}
+#endif
+
 void zj_ln_adapt_test(void)
 {
 #ifdef ZJ_LOG_TEST
@@ -249,13 +269,21 @@ void zj_ln_adapt_test(void)
     extern void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_len);
     zj_wifi_STA_Start(TEST_SSID, strlen(TEST_SSID), TEST_PWD, strlen(TEST_PWD));
     OS_MsDelay(8000);
-    while(1) {
-        zj_scan_router(ADAPT_EVT_BLUFI_SCAN);
-        OS_MsDelay(10000);
-    }
+    // for(int i = 0; i < 5; i++) 
+    // {
+    //     zj_scan_router(ADAPT_EVT_BLUFI_SCAN);
+    //     OS_MsDelay(10000);
+    // }
+    OS_LOGI("WiFi Test\r\n", "ZJ WiFi test finish!\r\n");
 #endif
 
 #ifdef ZJ_USER_DATA_TEST
     zj_user_data_kv_test();
+#endif
+
+#ifdef ZJ_OTA_TEST
+    OS_LOGI("OTA Test\r\n", "ZJ OTA test start!\r\n");
+    zj_ota_test();
+    OS_LOGI("OTA Test\r\n", "ZJ OTA test finish!\r\n");
 #endif
 }

@@ -88,7 +88,7 @@ extern uint32_t esp_timer_get_time(void);
 #define PORT_CONFIG_USER_DATA_SIZE            16*1024                                      /* 适配保存用户数据的flash大小 16K */
 #define PORT_BTR_NEW_SCENE_ADDR               0x001FE000                                   /* 适配场景功能，4K */
 
-#define PORT_CONFIG_OTA_IMAGE_NAME            "esp_ota.bin.xz.packed"                      /* 适配ota文件名 */
+#define PORT_CONFIG_OTA_IMAGE_NAME            "flashimage-ota-xz-v0.1.bin"               /* 适配ota文件名 */
 
 
 #define PORT_CONFIG_PWM_RED_CHANNEL           0                                 /*适配pwm red channel*/
