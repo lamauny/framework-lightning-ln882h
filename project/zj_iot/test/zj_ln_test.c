@@ -27,14 +27,20 @@
 // #define ZJ_RTC_TEST
 // #define LN_LINUX_COMPAT_TEST
 #define ZJ_WIFI_TEST
+#define ZJ_BLE_TEST
 // #define ZJ_GPIO_TEST
 // #define ZJ_USER_DATA_TEST
-#define ZJ_OTA_TEST
+// #define ZJ_OTA_TEST
+
+#ifdef ZJ_WIFI_TEST
+    #define TEST_SSID "MurphyTest"
+    #define TEST_PWD "12345678"
+#endif
 
 #ifdef ZJ_OTA_TEST
-#ifndef ZJ_WIFI_TEST
-#define ZJ_WIFI_TEST
-#endif
+    #ifndef ZJ_WIFI_TEST
+    #define ZJ_WIFI_TEST
+    #endif
 #endif
 
 #ifdef ZJ_LOG_TEST
@@ -243,6 +249,30 @@ void zj_ota_test(void)
 }
 #endif
 
+#ifdef ZJ_BLE_TEST
+void zj_ble_test(void)
+{
+    static uint8_t s_ble_test_data[128];
+    zj_ble_drv_init();
+
+    LOG(LOG_LVL_INFO, "ble init pass?%d\r\n", is_ble_init_finished());
+
+    zj_ble_adv_start();
+    OS_MsDelay(5000);
+    zj_ble_adv_stop();
+    OS_MsDelay(5000);
+    zj_ble_scan_start();
+    OS_MsDelay(5000);
+    zj_ble_scan_stop();
+    OS_MsDelay(5000);
+    zj_ble_notify(s_ble_test_data, sizeof(s_ble_test_data));
+    LOG(LOG_LVL_INFO, "ble conn status:%d\r\n", zj_ble_get_connected_status());
+    LOG(LOG_LVL_INFO, "ble mtu:%d\r\n", zj_ble_get_mtu());
+    OS_MsDelay(5000);
+    zj_ble_drv_deinit();
+}
+#endif
+
 void zj_ln_adapt_test(void)
 {
 #ifdef ZJ_LOG_TEST
@@ -262,8 +292,6 @@ void zj_ln_adapt_test(void)
 #endif
 
 #ifdef ZJ_WIFI_TEST
-    #define TEST_SSID "MurphyTest"
-    #define TEST_PWD "12345678"
     extern void zj_wifi_drv_init();
     OS_MsDelay(1000);
     extern void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_len);
@@ -275,6 +303,13 @@ void zj_ln_adapt_test(void)
     //     OS_MsDelay(10000);
     // }
     OS_LOGI("WiFi Test\r\n", "ZJ WiFi test finish!\r\n");
+#endif
+
+#ifdef ZJ_BLE_TEST
+    for (int i = 0; i < 2; i++) {
+        zj_ble_test();
+        OS_MsDelay(5000);
+    }
 #endif
 
 #ifdef ZJ_USER_DATA_TEST
