@@ -4,6 +4,46 @@
 #include <stdbool.h>
 /* BLE */
 
+#include "osal/osal.h"
+#include "utils/debug/ln_assert.h"
+#include "utils/debug/log.h"
+#include "ln_utils.h"
+#include "ln_misc.h"
+#include "gapm_task.h"
+#include "gapc_task.h"
+#include "gattc_task.h"
+#include "gattm_task.h"
+#include "gap.h"
+
+#include "ln_ble_gap.h"
+#include "ln_ble_gatt.h"
+#include "ln_ble_advertising.h"
+#include "ln_ble_scan.h"
+#include "ln_ble_rw_app_task.h"
+#include "ln_ble_app_kv.h"
+#include "ln_ble_connection_manager.h"
+#include "ln_ble_event_manager.h"
+#include "ln_ble_smp.h"
+#include "ln_ble_app_default_cfg.h"
+
+enum trans_svc_att_idx
+{
+    DATA_TRANS_DECL_SVC = 0,
+    DATA_TRANS_DECL_CHAR_RX,
+    DATA_TRANS_DECL_CHAR_RX_VAL,
+    DATA_TRANS_DECL_CHAR_TX,
+    DATA_TRANS_DECL_CHAR_TX_VAL,
+    DATA_TRANS_DECL_CHAR_TX_CCC,
+
+    DATA_TRANS_IDX_MAX,
+};
+
+enum {
+    DEVICE_ADV,
+    BTR_FORWARD_ADV,
+};
+
+#define CHAR_VAL_MAX_LEN    1024
 
 #define ADV_SCAN_UNIT(_ms) ((_ms) * 8 / 5)
 #define SCAN_INTERVAL_MS 70
@@ -11,457 +51,420 @@
 #define SCAN_INTERVAL    ADV_SCAN_UNIT(SCAN_INTERVAL_MS)
 #define SCAN_WINDOW      ADV_SCAN_UNIT(SCAN_WINDOW_MS)
 
-#define    TAG  "BTADPTR"
-static int __gap_event(struct ble_gap_event *event, void *arg);
-static void __device_adv();
-static uint8_t own_addr_type;
-static uint16_t g_conn_handle;
+
+
+
+#if (BLE_DATA_TRANS_SERVER)
+struct user_svc_desc {
+    ln_trans_svr_desc_t desc;
+    uint8_t ccc;//character client config
+};
+#endif
+
+#if (BLE_DATA_TRANS_CLIENT)
+struct user_cli_desc {
+    uint8_t con_idx;
+    uint16_t start_handle;
+    uint16_t end_handle;
+    uint8_t svc_uuid_len;
+    uint8_t svc_uuid[16];
+};
+#endif
+
+typedef struct
+{
+    uint16_t  id;
+    uint16_t  len;
+    void     *msg;
+} ble_usr_msg_t;
+
+#define ZJ_BLE_TASK_STACK_SIZE      (1024)
+#define DATA_TRANS_SVR_MAX          (2)
+
+#define DATA_TRANS_1ST_SVR_UUID     {0xff, 0xff}
+#define DATA_TRANS_1ST_RX_UUID      {0x01, 0xff}
+#define DATA_TRANS_1ST_TX_UUID      {0x02, 0xff}
+
+#define DATA_TRANS_2ND_SVR_UUID     {0xfe, 0xfe}
+#define DATA_TRANS_2ND_RX_UUID      {0x11, 0xff}
+#define DATA_TRANS_2ND_TX_UUID      {0x22, 0xff}
+
 static uint16_t g_mtu;
-static uint8_t g_is_peripheral_connected;
-static uint16_t g_notify_handle;
-static bool g_is_bt_scan_enable;
-static bool g_ble_init_flag;
-/**
- * The vendor specific security test service consists of two characteristics:
- *     o random-number-generator: generates a random 32-bit number each time
- *       it is read.
- *     o static-value: a single-byte characteristic that can always be read.
- */
+static int g_ble_init_flag = -1;
+static OS_Thread_t g_zj_ble_app_thread;
+static uint8_t g_btr_forward_p[26];
 
-// static const ble_uuid16_t gatt_svr_svc_light   = BLE_UUID16_INIT(0xFFFF);
-// static const ble_uuid16_t gatt_svr_light_chr_w = BLE_UUID16_INIT(0xff01);
-// static const ble_uuid16_t gatt_svr_light_chr_r = BLE_UUID16_INIT(0xff02);
+#if (BLE_DATA_TRANS_SERVER)
+static const ln_attm_desc_t data_trans_1st_atts_db[] = {
+    [DATA_TRANS_DECL_SVC] = {
+        .uuid = {0x00, 0x28},
+        .perm = PERM_MASK_RD,
+        .ext_perm = (0 << PERM_POS_UUID_LEN),
+        .max_size = 0,
+    },
+    [DATA_TRANS_DECL_CHAR_RX] = {
+        .uuid = {0x03, 0x28},
+        .perm = PERM_MASK_RD,
+        .ext_perm = 0,
+        .max_size = 0,
+    },
+    [DATA_TRANS_DECL_CHAR_RX_VAL] = {
+        .uuid = DATA_TRANS_1ST_RX_UUID,
+        .perm = PERM_MASK_WRITE_REQ | PERM_MASK_WRITE_COMMAND | PERM_MASK_RD,
+        .ext_perm = (1 << PERM_POS_RI),
+        .max_size = CHAR_VAL_MAX_LEN,
+    },
+    [DATA_TRANS_DECL_CHAR_TX] = {
+        .uuid       = {0x03, 0x28},
+        .perm       = PERM_MASK_RD,
+        .ext_perm   = 0,
+        .max_size   = 0,
+    },
+    [DATA_TRANS_DECL_CHAR_TX_VAL] = {
+        .uuid       = DATA_TRANS_1ST_TX_UUID,
+        .perm       = PERM_MASK_NTF | PERM_MASK_RD,
+        .ext_perm   = (1 << PERM_POS_RI),
+        .max_size   = CHAR_VAL_MAX_LEN,
+    },
+    [DATA_TRANS_DECL_CHAR_TX_CCC] = {
+        .uuid       = {0x02, 0x29},
+        .perm       = PERM_MASK_WRITE_REQ | PERM_MASK_RD,
+        .ext_perm    = 0,
+        .max_size    = 0,
+    },
+};
 
-// static const ble_uuid16_t gatt_svr_svc_ota   = BLE_UUID16_INIT(0xFE00);
-// static const ble_uuid16_t gatt_svr_ota_chr_w = BLE_UUID16_INIT(0xff11);
-// static const ble_uuid16_t gatt_svr_ota_chr_r = BLE_UUID16_INIT(0xff22);
+static const ln_attm_desc_t data_trans_2nd_atts_db[] = {
+    [DATA_TRANS_DECL_SVC] = {
+        .uuid = {0x00, 0x28},
+        .perm = PERM_MASK_RD,
+        .ext_perm = (0 << PERM_POS_UUID_LEN),
+        .max_size = 0,
+    },
+    [DATA_TRANS_DECL_CHAR_RX] = {
+        .uuid = {0x03, 0x28},
+        .perm = PERM_MASK_RD,
+        .ext_perm = 0,
+        .max_size = 0,
+    },
+    [DATA_TRANS_DECL_CHAR_RX_VAL] = {
+        .uuid = DATA_TRANS_2ND_RX_UUID,
+        .perm = PERM_MASK_WRITE_REQ | PERM_MASK_WRITE_COMMAND | PERM_MASK_RD,
+        .ext_perm = (1 << PERM_POS_RI),
+        .max_size = CHAR_VAL_MAX_LEN,
+    },
+    [DATA_TRANS_DECL_CHAR_TX] = {
+        .uuid       = {0x03, 0x28},
+        .perm       = PERM_MASK_RD,
+        .ext_perm   = 0,
+        .max_size   = 0,
+    },
+    [DATA_TRANS_DECL_CHAR_TX_VAL] = {
+        .uuid       = DATA_TRANS_2ND_TX_UUID,
+        .perm       = PERM_MASK_NTF | PERM_MASK_RD,
+        .ext_perm   = (1 << PERM_POS_RI),
+        .max_size   = CHAR_VAL_MAX_LEN,
+    },
+    [DATA_TRANS_DECL_CHAR_TX_CCC] = {
+        .uuid       = {0x02, 0x29},
+        .perm       = PERM_MASK_WRITE_REQ | PERM_MASK_RD,
+        .ext_perm    = 0,
+        .max_size    = 0,
+    },
+};
 
-static uint8_t gatt_svr_light_static_val[256];
+static struct user_svc_desc g_user_svc_desc_tab[DATA_TRANS_SVR_MAX] = {
+    {
+        .desc = {
+            .start_handle   = LN_ATT_INVALID_HANDLE,
+            .svr_uuid_len   = 16,
+            .svr_uuid       = DATA_TRANS_1ST_SVR_UUID,
+            .att_count      = sizeof(data_trans_1st_atts_db)/sizeof(data_trans_1st_atts_db[0]),
+            .att_desc       = &data_trans_1st_atts_db,
+        },
+        .ccc = 0,
+    },
+    {
+        .desc = {
+            .start_handle   = LN_ATT_INVALID_HANDLE,
+            .svr_uuid_len   = 2,
+            .svr_uuid       = DATA_TRANS_2ND_SVR_UUID,
+            .att_count      = sizeof(data_trans_2nd_atts_db)/sizeof(data_trans_2nd_atts_db[0]),
+            .att_desc        = &data_trans_2nd_atts_db,
+        },
+        .ccc = 0
+    }
+};
+#endif
 
-// static int
-// gatt_svr_light_access_cb(uint16_t conn_handle, uint16_t attr_handle,
-//                              struct ble_gatt_access_ctxt *ctxt,
-//                              void *arg);
+#if (BLE_DATA_TRANS_CLIENT)
+struct user_cli_desc g_user_cli_desc_tab[DATA_TRANS_SVR_MAX] = {
+    {
+        .con_idx        = APP_CONN_INVALID_IDX,
+        .start_handle   = LN_ATT_INVALID_HANDLE,
+        .end_handle     = LN_ATT_INVALID_HANDLE,
+        .svc_uuid_len   = 16,
+        .svc_uuid       = DATA_TRANS_1ST_SVR_UUID,
+    },
+    {
+        .con_idx        = APP_CONN_INVALID_IDX,
+        .start_handle   = LN_ATT_INVALID_HANDLE,
+        .end_handle     = LN_ATT_INVALID_HANDLE,
+        .svc_uuid_len   = 2,
+        .svc_uuid       = DATA_TRANS_2ND_SVR_UUID,
+    },
+};
+#endif
 
-// static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
-//     {
-//         /*** Service: Security test. */
-//         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-//         .uuid = &gatt_svr_svc_light.u,
-//         .characteristics = (struct ble_gatt_chr_def[])
-//         { {
-//                 /*** Characteristic: Random number generator. */
-//                 .uuid = &gatt_svr_light_chr_w.u,
-//                 .access_cb = gatt_svr_light_access_cb,
-//                 .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP
-//             }, {
-//                 /*** Characteristic: Static value. */
-//                 .uuid = &gatt_svr_light_chr_r.u,
-//                 .access_cb = gatt_svr_light_access_cb,
-//                 .flags = BLE_GATT_CHR_F_NOTIFY,
-//                 .val_handle = &g_notify_handle,
-//             }, {
-//                 0, /* No more characteristics in this service. */
-//             }
-//         },
-//     },
-
-//     {
-//         /*** Service: Security test. */
-//         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-//         .uuid = &gatt_svr_svc_ota.u,
-//         .characteristics = (struct ble_gatt_chr_def[])
-//         { {
-//                 /*** Characteristic: Random number generator. */
-//                 .uuid = &gatt_svr_ota_chr_w.u,
-//                 .access_cb = gatt_svr_light_access_cb,
-//                 .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP
-//             }, {
-//                 /*** Characteristic: Static value. */
-//                 .uuid = &gatt_svr_ota_chr_r.u,
-//                 .access_cb = gatt_svr_light_access_cb,
-//                 .flags = BLE_GATT_CHR_F_NOTIFY
-//             }, {
-//                 0, /* No more characteristics in this service. */
-//             }
-//         },
-//     },
-//     {
-
-//     }
-// };
-
-// static int
-// gatt_svr_light_access_cb(uint16_t conn_handle, uint16_t attr_handle,
-//                              struct ble_gatt_access_ctxt *ctxt,
-//                              void *arg)
-// {
-//     const ble_uuid_t *uuid;
-//     int rc;
-
-//     uuid = ctxt->chr->uuid;
-
-//     /* Determine which characteristic is being accessed by examining its
-//      * 128-bit UUID.
-//      */
-//     if (ble_uuid_cmp(uuid, &gatt_svr_light_chr_w.u) == 0) {
-//         switch (ctxt->op) {
-//         case BLE_GATT_ACCESS_OP_READ_CHR:
-
-//             return 0;
-
-//         case BLE_GATT_ACCESS_OP_WRITE_CHR:{
-                                   
-//             uint8_t om_len = OS_MBUF_PKTLEN(ctxt->om);
-//             ble_hs_mbuf_to_flat(ctxt->om, gatt_svr_light_static_val, 256, NULL);
-//             zj_adapter_post_event(ADAPT_EVT_BLE_LIGHT_DATA,gatt_svr_light_static_val,NULL,om_len);                     
-//         }return rc;
-
-//         default:
-//             assert(0);
-//         }
-           
-//     }
-//     else if (ble_uuid_cmp(uuid, &gatt_svr_ota_chr_w.u) == 0) {
- 
-//     }
-//     /* Unknown characteristic; the nimble stack should not have called this
-//      * function.
-//      */
-//     assert(0);
-//     return BLE_ATT_ERR_UNLIKELY;
-// }
-
-// void
-// gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
-// {
-//     char buf[BLE_UUID_STR_LEN];
-
-//     switch (ctxt->op) {
-//     case BLE_GATT_REGISTER_OP_SVC:
-//         ESP_LOGI(TAG, "registered service %s with handle=%d\n",
-//                     ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf),
-//                     ctxt->svc.handle);
-//         break;
-
-//     case BLE_GATT_REGISTER_OP_CHR:
-//         ESP_LOGI(TAG, "registering characteristic %s with "
-//                     "def_handle=%d val_handle=%d\n",
-//                     ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf),
-//                     ctxt->chr.def_handle,
-//                     ctxt->chr.val_handle);
-//         break;
-
-//     case BLE_GATT_REGISTER_OP_DSC:
-//         ESP_LOGI(TAG, "registering descriptor %s with handle=%d\n",
-//                     ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf),
-//                     ctxt->dsc.handle);
-//         break;
-
-//     default:
-//         assert(0);
-//         break;
-//     }
-// }
-
-int
-gatt_svr_init(void)
+static void app_set_adv_data(void)
 {
-    int rc;
+    //adv data: adv length--adv type--adv string ASCII
+    uint8_t adv_data_len = 0;
+    uint8_t adv_data[ADV_DATA_LEGACY_MAX] = {0};
+    ln_adv_data_t adv_data_param;
 
-    // ble_svc_gap_init();
-    // ble_svc_gatt_init();
-    // ble_svc_ans_init();
+    uint8_t *cus_adv_data = zj_adapter_get_adv_data_config();
 
-    // rc = ble_gatts_count_cfg(gatt_svr_svcs);
-    // if (rc != 0) {
-    //     return rc;
-    // }
+#if (BLE_NET_VERSION == 5)
+    adv_data[adv_data_len++] = 21;
+    adv_data[adv_data_len++] = GAP_AD_TYPE_COMPLETE_NAME;
+    memcpy(adv_data+2, cus_adv_data+5, 20);
+    adv_data_len += 20;
+#else
+    adv_data[adv_data_len++] = 17;
+    adv_data[adv_data_len++] = GAP_AD_TYPE_SERVICE_16_BIT_DATA;
+    memcpy(adv_data+adv_data_len, cus_adv_data+5, 16);
+    adv_data_len += 16;
+    adv_data[adv_data_len++] = 9;
+    adv_data[adv_data_len++] = GAP_AD_TYPE_COMPLETE_NAME;
+    memcpy(adv_data+adv_data_len, cus_adv_data+23, 8);
+    adv_data_len += 8;
+#endif
 
-    // rc = ble_gatts_add_svcs(gatt_svr_svcs);
-    // if (rc != 0) {
-    //     return rc;
-    // }
+    adv_data_param.length = adv_data_len;
+    adv_data_param.data = adv_data;
+    ln_ble_adv_data_set(&adv_data_param);
 
-    return 0;
+    hexdump(LOG_LVL_INFO, (const char *)"legacy_adv", adv_data, adv_data_len);
 }
 
-
-void ble_store_config_init(void);
-/**
- * Logs information about a connection to the console.
- */
-// static void
-// bleprph_print_conn_desc(struct ble_gap_conn_desc *desc)
-// {
-//     ESP_LOGI(TAG, "handle=%d our_ota_addr_type=%d our_ota_addr=%02x:%02x:%02x:%02x:%02x:%02x",
-//              desc->conn_handle, desc->our_ota_addr.type,
-//              desc->our_ota_addr.val[5],
-//              desc->our_ota_addr.val[4],
-//              desc->our_ota_addr.val[3],
-//              desc->our_ota_addr.val[2],
-//              desc->our_ota_addr.val[1],
-//              desc->our_ota_addr.val[0]);
-
-//     ESP_LOGI(TAG, "our_id_addr_type=%d our_id_addr=%02x:%02x:%02x:%02x:%02x:%02x",
-//              desc->our_id_addr.type,
-//              desc->our_id_addr.val[5],
-//              desc->our_id_addr.val[4],
-//              desc->our_id_addr.val[3],
-//              desc->our_id_addr.val[2],
-//              desc->our_id_addr.val[1],
-//              desc->our_id_addr.val[0]);
-
-//     ESP_LOGI(TAG, "peer_ota_addr_type=%d peer_ota_addr=%02x:%02x:%02x:%02x:%02x:%02x",
-//              desc->peer_ota_addr.type,
-//              desc->peer_ota_addr.val[5],
-//              desc->peer_ota_addr.val[4],
-//              desc->peer_ota_addr.val[3],
-//              desc->peer_ota_addr.val[2],
-//              desc->peer_ota_addr.val[1],
-//              desc->peer_ota_addr.val[0]);
-
-//     ESP_LOGI(TAG, "peer_id_addr_type=%d peer_id_addr=%02x:%02x:%02x:%02x:%02x:%02x",
-//              desc->peer_id_addr.type,
-//              desc->peer_id_addr.val[5],
-//              desc->peer_id_addr.val[4],
-//              desc->peer_id_addr.val[3],
-//              desc->peer_id_addr.val[2],
-//              desc->peer_id_addr.val[1],
-//              desc->peer_id_addr.val[0]);
-
-//     ESP_LOGI(TAG, "conn_itvl=%d conn_latency=%d supervision_timeout=%d "
-//                 "encrypted=%d authenticated=%d bonded=%d",
-//                 desc->conn_itvl, desc->conn_latency,
-//                 desc->supervision_timeout,
-//                 desc->sec_state.encrypted,
-//                 desc->sec_state.authenticated,
-//                 desc->sec_state.bonded);
-// }
-
-/**
- * The nimble host executes this callback when a GAP event occurs.  The
- * application associates a GAP event callback with each connection that forms.
- * bleprph uses the same callback for all connections.
- *
- * @param event                 The type of event being signalled.
- * @param ctxt                  Various information pertaining to the event.
- * @param arg                   Application-specified argument; unused by
- *                                  bleprph.
- *
- * @return                      0 if the application successfully handled the
- *                                  event; nonzero on failure.  The semantics
- *                                  of the return code is specific to the
- *                                  particular GAP event being signalled.
- */
-// static int
-// __gap_event(struct ble_gap_event *event, void *arg)
-// {
-//     struct ble_gap_conn_desc desc;
-//     int rc;
-
-//     switch (event->type) {
-//     case BLE_GAP_EVENT_DISC:                           
-//         if(event->disc.length_data > 28 && event->disc.length_data <= 31){
-                            
-//             uint8_t adv_data[32 + 6] = {0};
-        
-//             memcpy(adv_data,event->disc.addr.val, 6);
-//             memcpy(adv_data + 6,event->disc.data,event->disc.length_data);
-//             zj_adapter_post_event(ADAPT_EVT_BLE_RMT,adv_data,(int *)&event->disc.rssi,event->disc.length_data + 6);
-//         }
-//         return 0;
-//     case BLE_GAP_EVENT_CONNECT:
-//         /* A new connection was established or a connection attempt failed. */
-//         ESP_LOGI(TAG, "connection %s; status=%d ",
-//                     event->connect.status == 0 ? "established" : "failed",
-//                     event->connect.status);
-//         if (event->connect.status == 0) {
-//             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
-//             assert(rc == 0);
-//             bleprph_print_conn_desc(&desc);
-//         }
-
-//         if (event->connect.status != 0) {
-//             /* Connection failed; resume advertising. */
-//             __device_adv();
-//         }else{
-//             zj_adapter_post_event(ADAPT_EVT_BLE_CONNECTED,NULL,NULL,0);
-//             g_is_peripheral_connected = true;
-//             g_conn_handle = event->connect.conn_handle;
-//         }
-//         return 0;
-
-//     case BLE_GAP_EVENT_DISCONNECT:
-//         ESP_LOGI(TAG, "disconnect; reason=%d ", event->disconnect.reason);
-//         bleprph_print_conn_desc(&event->disconnect.conn);
-
-//         /* Connection terminated; resume advertising. */
-//         __device_adv();
-//         zj_adapter_post_event(ADAPT_EVT_BLE_DISCONNECTED,NULL,NULL,0);
-//         g_is_peripheral_connected = false;
-//         return 0;
-
-//     case BLE_GAP_EVENT_CONN_UPDATE:
-//         /* The central has updated the connection parameters. */
-//         ESP_LOGI(TAG, "connection updated; status=%d ",
-//                     event->conn_update.status);
-//         rc = ble_gap_conn_find(event->conn_update.conn_handle, &desc);
-//         assert(rc == 0);
-//         bleprph_print_conn_desc(&desc);
-//         return 0;
-
-//     case BLE_GAP_EVENT_ADV_COMPLETE:
-//         ESP_LOGI(TAG, "advertise complete; reason=%d",
-//                     event->adv_complete.reason);
-//       //  __device_adv();
-//         return 0;
-
-//     case BLE_GAP_EVENT_ENC_CHANGE:
-//         /* Encryption has been enabled or disabled for this connection. */
-//         ESP_LOGI(TAG, "encryption change event; status=%d ",
-//                     event->enc_change.status);
-//         rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
-//         assert(rc == 0);
-//         bleprph_print_conn_desc(&desc);
-//         return 0;
-
-//     case BLE_GAP_EVENT_SUBSCRIBE:
-//         ESP_LOGI(TAG, "subscribe event; conn_handle=%d attr_handle=%d "
-//                     "reason=%d prevn=%d curn=%d previ=%d curi=%d",
-//                     event->subscribe.conn_handle,
-//                     event->subscribe.attr_handle,
-//                     event->subscribe.reason,
-//                     event->subscribe.prev_notify,
-//                     event->subscribe.cur_notify,
-//                     event->subscribe.prev_indicate,
-//                     event->subscribe.cur_indicate);
-//         return 0;
-
-//     case BLE_GAP_EVENT_MTU:
-//         ESP_LOGI(TAG, "mtu update event; conn_handle=%d cid=%d mtu=%d",
-//                     event->mtu.conn_handle,
-//                     event->mtu.channel_id,
-//                     event->mtu.value);
-//         g_mtu = event->mtu.value;
-//         return 0;
-
-//     case BLE_GAP_EVENT_REPEAT_PAIRING:
-//         /* We already have a bond with the peer, but it is attempting to
-//          * establish a new secure link.  This app sacrifices security for
-//          * convenience: just throw away the old bond and accept the new link.
-//          */
-
-//         /* Delete the old bond. */
-//         rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc);
-//         assert(rc == 0);
-//         ble_store_util_delete_peer(&desc.peer_id_addr);
-
-//         /* Return BLE_GAP_REPEAT_PAIRING_RETRY to indicate that the host should
-//          * continue with the pairing operation.
-//          */
-//         return BLE_GAP_REPEAT_PAIRING_RETRY;
-//     }
-
-//     return 0;
-// }
-
-static void
-bleprph_on_reset(int reason)
+static void app_set_scan_resp_data(void)
 {
-    // ESP_LOGE(TAG, "Resetting state; reason=%d", reason);
+    //adv data: adv length--adv type--adv string ASCII
+    uint8_t adv_data_len = 0;
+    uint8_t adv_data[31] = {0};
+    ln_adv_data_t adv_data_param;
+
+    uint8_t *cus_adv_rsp_data = zj_adapter_get_adv_scanResp_config();
+
+    adv_data[adv_data_len++] = 30;
+    adv_data[adv_data_len++] = 0xff;
+    memcpy(adv_data+adv_data_len, cus_adv_rsp_data+2, 29);
+    adv_data_len += 29;
+
+    adv_data_param.length = adv_data_len;
+    adv_data_param.data = adv_data;
+    ln_ble_adv_scan_rsp_data_set(&adv_data_param);
+
+    hexdump(LOG_LVL_INFO, (const char *)"legacy_scan_rsp", adv_data, adv_data_len);
 }
 
-static void
-bleprph_on_sync(void)
+static void ln_ble_connect_cb(void *arg)
 {
-    // int rc;
+    ble_evt_connected_t * evt_conn = (ble_evt_connected_t *)arg;
 
-    // rc = ble_hs_util_ensure_addr(0);
-    // assert(rc == 0);
+    uint8_t conn_idx = evt_conn->conn_idx;
+    LOG(LOG_LVL_TRACE, "ln_ble_connect conn_id=%d\r\n", conn_idx);
 
-    // /* Figure out address to use while advertising (no privacy for now) */
-    // rc = ble_hs_id_infer_auto(0, &own_addr_type);
-    // if (rc != 0) {
-    //     ESP_LOGE(TAG, "error determining address type; rc=%d", rc);
-    //     return;
-    // }
+    zj_adapter_post_event(ADAPT_EVT_BLE_CONNECTED,NULL,NULL,0);
+}
 
-    // /* Printing ADDR */
-    // uint8_t addr_val[6] = {0};
-    // rc = ble_hs_id_copy_addr(own_addr_type, addr_val, NULL);
+static void ln_ble_disconnect_cb(void *arg)
+{
+    ble_evt_disconnected_t *evt_disconn = (ble_evt_disconnected_t *)arg;
+    uint8_t ble_role = ln_kv_ble_usr_data_get()->ble_role;
+    LOG(LOG_LVL_TRACE, "ln_ble_disconnect conn_id=%d\r\n", evt_disconn->conn_idx);
 
-    // ESP_LOGI(TAG, "Device Address:%02x:%02x:%02x:%02x:%02x:%02x",
-    //          addr_val[5],
-    //          addr_val[4],
-    //          addr_val[3],
-    //          addr_val[2],
-    //          addr_val[1],
-    //          addr_val[0]);
+    zj_adapter_post_event(ADAPT_EVT_BLE_DISCONNECTED,NULL,NULL,0);
+
+    if((ble_role & BLE_ROLE_PERIPHERAL)) {
+        if(1 == g_ble_init_flag)
+        {
+            ln_ble_adv_start();
+        }
+#if (BLE_DATA_TRANS_SERVER)
+        for(int i=0;i<DATA_TRANS_SVR_MAX;i++)
+            g_user_svc_desc_tab[i].ccc = 0;
+#endif
+    }
+
+    if((ble_role & BLE_ROLE_CENTRAL)) {
+#if (BLE_DATA_TRANS_CLIENT)
+        for(int i=0;i<DATA_TRANS_SVR_MAX;i++) {
+            g_user_cli_desc_tab[i].con_idx        = APP_CONN_INVALID_IDX;
+            g_user_cli_desc_tab[i].start_handle   = LN_ATT_INVALID_HANDLE;
+            g_user_cli_desc_tab[i].end_handle     = LN_ATT_INVALID_HANDLE;
+        }
+#endif
+    }
+}
+
+static void ln_ble_scan_report_cb(void *arg)
+{
+    ble_evt_scan_report_t *p_scan_rpt = (ble_evt_scan_report_t *)arg;
+
+    LOG(LOG_LVL_TRACE, "\r\n--------------adv_report-------------\r\n");
+    LOG(LOG_LVL_TRACE, "rssi=%d, tx_pwr=%d\r\n", p_scan_rpt->rssi, p_scan_rpt->tx_pwr);
+    LOG(LOG_LVL_TRACE, "addr_type=%d, addr=0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\r\n",
+            p_scan_rpt->trans_addr_type, p_scan_rpt->trans_addr[0], p_scan_rpt->trans_addr[1],
+            p_scan_rpt->trans_addr[2], p_scan_rpt->trans_addr[3], p_scan_rpt->trans_addr[4], p_scan_rpt->trans_addr[5]);
+    //hexdump(LOG_LVL_INFO, "adv data: ", (void *)p_scan_rpt->data, p_scan_rpt->length);
+    uint8_t adv_data[40];
+    memcpy(adv_data, p_scan_rpt->data, p_scan_rpt->length);
+    memcpy(adv_data+p_scan_rpt->length, p_scan_rpt->trans_addr, 6);
+    zj_adapter_post_event(ADAPT_EVT_BLE_RMT, adv_data, (int *)&(p_scan_rpt->rssi), p_scan_rpt->length + 6);
+
+}
+
+#if (BLE_DATA_TRANS_SERVER)
+static void ln_ble_gatt_write_req_cb(void *arg)
+{
+    ble_evt_gatt_write_req_t *p_gatt_write = (ble_evt_gatt_write_req_t *)arg;
+    LOG(LOG_LVL_TRACE, "ln_ble_gatt_write conn_id=%d,handle=%d\r\n",p_gatt_write->conidx,p_gatt_write->handle);
+    hexdump(LOG_LVL_INFO, "[recv data]", (void *)p_gatt_write->value, p_gatt_write->length);
+
+    if(p_gatt_write->handle == g_user_svc_desc_tab[0].desc.start_handle +DATA_TRANS_DECL_CHAR_TX_CCC)
+        g_user_svc_desc_tab[0].ccc = *((uint16_t *)p_gatt_write->value);
+
+    if(p_gatt_write->handle == g_user_svc_desc_tab[1].desc.start_handle +DATA_TRANS_DECL_CHAR_TX_CCC)
+        g_user_svc_desc_tab[1].ccc = *((uint16_t *)p_gatt_write->value);
+
+    if(p_gatt_write->handle == g_user_svc_desc_tab[0].desc.start_handle +DATA_TRANS_DECL_CHAR_RX_VAL)
+        zj_adapter_post_event(ADAPT_EVT_BLE_LIGHT_DATA,p_gatt_write->value,NULL,p_gatt_write->length);
+
+    if(p_gatt_write->handle == g_user_svc_desc_tab[1].desc.start_handle +DATA_TRANS_DECL_CHAR_RX_VAL)
+        zj_adapter_post_event(ADAPT_EVT_BLE_OTA_DATA,p_gatt_write->value,NULL,p_gatt_write->length);
+}
+#endif
+
+static void ln_ble_stack_init(void)
+{
+    //1.controller init
+    ln_bd_addr_t bt_addr = {0};
+#ifdef BLE_USE_STATIC_PUBLIC_ADDR
+    ln_bd_addr_t *kv_addr = ln_kv_ble_pub_addr_get();
+    memcpy(&bt_addr, kv_addr, sizeof(ln_bd_addr_t));
+#else
+    ln_generate_random_mac(bt_addr.addr);
+    bt_addr.addr[5] |= 0xC0;
+#endif
+    extern void rw_init(uint8_t mac[6]);
+    rw_init(bt_addr.addr);
+
+    //2.host init
+    ln_gap_app_init();
+    ln_gatt_app_init();
+
+    //3.app component init
+    ln_ble_conn_mgr_init();
+    ln_ble_evt_mgr_init();
+    ln_ble_smp_init();
+
+    uint8_t role = ln_kv_ble_usr_data_get()->ble_role;
+
+    if(role & BLE_ROLE_PERIPHERAL) {
+        ln_ble_adv_mgr_init();
+    }
+
+    if((role & BLE_ROLE_CENTRAL)) {
+        ln_ble_scan_mgr_init();
+    }
+
+#if (BLE_DATA_TRANS_SERVER)
+    ln_ble_trans_svr_init();
+#endif
+#if (BLE_DATA_TRANS_CLIENT)
+    ln_ble_trans_cli_init();
+#endif
+
+    ln_rw_app_task_init();
+
+    //4.stack start
+    ln_gap_reset();
+    
+    uint8_t *mac = bt_addr.addr;
+    LOG(LOG_LVL_INFO, "+--------------- ble stack init ok -----------+\r\n");
+    LOG(LOG_LVL_INFO, "|ble role : %-22d            |\r\n",  role);
+    LOG(LOG_LVL_INFO, "|ble mac  : [%02X:%02X:%02X:%02X:%02X:%02X] %-13s |\r\n", mac[5], mac[4], mac[3], mac[2], mac[1], mac[0], "");
+    LOG(LOG_LVL_INFO, "+---------------------------------------------+\r\n");
+}
+
+static void ln_ble_app_init(void)
+{
+    uint8_t role = ln_kv_ble_usr_data_get()->ble_role;
+    LOG(LOG_LVL_TRACE, "ble_app_init role=%d\r\n", role);
+
+    ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_CONNECTED,    ln_ble_connect_cb);
+    ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_DISCONNECTED, ln_ble_disconnect_cb);
+
+    if(role & BLE_ROLE_PERIPHERAL)
+    {
+#if (BLE_DATA_TRANS_SERVER)
+        for(int i = 0;i<DATA_TRANS_SVR_MAX;i++) {
+            ln_ble_trans_svr_add(&g_user_svc_desc_tab[i].desc);
+        }
+        ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_GATT_WRITE_REQ, ln_ble_gatt_write_req_cb);
+#endif
+        /*advertising activity init*/
+        adv_param_t *adv_param = &le_adv_mgr_info_get()->adv_param;
+        adv_param->adv_type = GAPM_ADV_TYPE_LEGACY;
+        adv_param->adv_prop = GAPM_ADV_PROP_UNDIR_CONN_MASK;
+        ln_ble_adv_actv_creat(adv_param);
+        /*set advertising data*/
+        app_set_adv_data();
+        /*set scan respond data*/
+        app_set_scan_resp_data();
+
+        /*start advertising*/
+        //ln_ble_adv_start();
+    }
+
+    if((role & BLE_ROLE_CENTRAL))
+    {
+        ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_SCAN_REPORT, ln_ble_scan_report_cb);
+
+        /*scan activity init*/
+        ln_ble_scan_actv_creat();
+        /*start scan*/
+        //ln_ble_scan_start(&le_scan_mgr_info_get()->scan_param);
+        /*connect activity init*/
+        //ln_ble_init_actv_creat();
+    }
 }
 
 void bleprph_host_task(void *param)
 {
-    // ESP_LOGI(TAG, "BLE Host Task Started");
-    // /* This function will return only when nimble_port_stop() is executed */
-    // nimble_port_run();
 
-    // nimble_port_freertos_deinit();
-    // ESP_LOGW(TAG, "nimble_port_freertos_deinit");
 }
-
-
 
 void zj_ble_scan_stop()
-{  
-//    if(g_is_bt_scan_enable == true){
-
-//        ble_gap_disc_cancel();
-//        ESP_LOGI(TAG,"zj_ble_scan_stop\n\n");
-//    }
+{
+    if(LE_SCAN_STATE_STARTING == le_scan_state_get() 
+            || LE_SCAN_STATE_STARTED == le_scan_state_get()) {
+        ln_ble_scan_stop();
+    }
 }
-
 
 void zj_ble_scan_start()
 {
-//    if(g_is_bt_scan_enable == false){
+    if(1 != g_ble_init_flag)
+        return ;
 
-
-//         uint8_t own_addr_type;
-//         struct ble_gap_disc_params disc_params;
-//         int rc;
-
-//         /* Figure out address to use while advertising (no privacy for now) */
-//         rc = ble_hs_id_infer_auto(0, &own_addr_type);
-//         if (rc != 0) {
-//             MODLOG_DFLT(ERROR, "error determining address type; rc=%d\n", rc);
-//             return;
-//         }
-//         /* Tell the controller to filter duplicates; we don't want to process
-//             * repeated advertisements from the same device.
-//             */
-//         disc_params.filter_duplicates = 0;
-
-//         /**
-//          * Perform a passive scan.  I.e., don't send follow-up scan requests to
-//          * each advertiser.
-//          */
-//         disc_params.passive = 1;
-
-//         /* Use defaults for the rest of the parameters. */
-//         disc_params.itvl = SCAN_INTERVAL_MS;
-//         disc_params.window = SCAN_WINDOW_MS;
-//         disc_params.filter_policy = 0;
-//         disc_params.limited = 0;
-        
-//         rc = ble_gap_disc(own_addr_type, BLE_HS_FOREVER, &disc_params,
-//                             __gap_event, NULL);
-//         if (rc != 0) {
-//             MODLOG_DFLT(ERROR, "Error initiating GAP discovery procedure; rc=%d own_addr_type %d\n",
-//                         rc,own_addr_type);
-//         }
-//    }
-//    ESP_LOGW(TAG,"zj_ble_scan_start %d\n\n",g_is_bt_scan_enable);
+    if(LE_SCAN_STATE_INITIALIZED == le_adv_state_get()
+            ||LE_SCAN_STATE_STOPING == le_scan_state_get() 
+            || LE_SCAN_STATE_STOPED == le_scan_state_get()) {
+        ln_ble_scan_start(&le_scan_mgr_info_get()->scan_param);
+    }
 }
 
 void zj_btr_adv_payload_update(uint8_t *p)
@@ -469,67 +472,47 @@ void zj_btr_adv_payload_update(uint8_t *p)
 
 }
 
-// struct ble_hs_adv_fields adv_fields;
-// struct ble_hs_adv_fields scan_fields;
-static void __device_adv()
-{	
-    // struct ble_gap_adv_params adv_params;
-    // int rc = ble_gap_adv_set_data(zj_adapter_get_adv_data_config(),BLE_ADV_DATA_LENGTH);
-    // ESP_LOGI(TAG,"ble_gap_adv_set_data err = %d",rc);
-    // rc = ble_gap_adv_rsp_set_data(zj_adapter_get_adv_scanResp_config(),31);
-    // ESP_LOGI(TAG,"ble_gap_adv_rsp_set_data err = %d",rc);
-    // /* Begin advertising. */
-    // memset(&adv_params, 0, sizeof adv_params);
-    // adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    // adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    // rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
-    //                        &adv_params, __gap_event, NULL);
-    // ESP_LOGW(TAG, "device_adv rc=%d\n\n", rc);
-    // if (rc != 0) {
-    //     ESP_LOGE(TAG, "error enabling advertisement; rc=%d", rc);
-    //     return;
-    // }
-}
-
-static void __btr_forward_adv()
-{
- 
-}
-
 void zj_ble_adv_update()
 {
-//    if(zj_adapter_post_adv_update_condition_get() && g_ble_init_flag){
+    if(zj_adapter_post_adv_update_condition_get()){
+        ln_ble_adv_stop();
+        OS_MsDelay(600);
+        ln_ble_adv_start();
+    }
 
-//       ble_gap_adv_stop();;
-//       vTaskDelay(200 / portTICK_RATE_MS);
-//        __device_adv();
-//     }
 }
 
 uint8_t zj_ble_get_connected_status()
 {
-    return g_is_peripheral_connected ;
+    return ln_ble_is_connected();
 }
 
-void zj_ble_notify(uint8_t *data,int len)
+void zj_ble_notify(uint8_t *data, int len)
 {
-    // struct os_mbuf *om;
-    // om = ble_hs_mbuf_from_flat(data, len);
-    // if (om == NULL) {
-    //     /* Memory not available for mbuf */
-    //     ESP_LOGE(TAG, "No MBUFs available from pool, retry..");
-    //     vTaskDelay(100 / portTICK_PERIOD_MS);
-    //     om = ble_hs_mbuf_from_flat(data, len);
-    //     //assert(om != NULL);
-    // }
-    // int rc = 0;
-    // rc = ble_gattc_notify_custom(g_conn_handle, g_notify_handle, om);
-    //assert(rc == 0);
+    ln_trans_svr_send_t data_send;
+
+    if(g_user_svc_desc_tab[0].ccc && LN_ATT_INVALID_HANDLE != g_user_svc_desc_tab[0].desc.start_handle) {
+        data_send.conn_idx = 0;
+        data_send.hdl = g_user_svc_desc_tab[0].desc.start_handle +DATA_TRANS_DECL_CHAR_TX_VAL; 
+        data_send.len = len;
+        data_send.data = data;
+
+        ln_ble_trans_svr_ntf(&data_send);
+    }
 }
 
-void zj_ble_ota_notify(uint8_t *data,int len)
+void zj_ble_ota_notify(uint8_t *data, int len)
 {
-  
+    ln_trans_svr_send_t data_send;
+
+    if(g_user_svc_desc_tab[1].ccc && LN_ATT_INVALID_HANDLE != g_user_svc_desc_tab[0].desc.start_handle) {
+        data_send.conn_idx = 0;
+        data_send.hdl = g_user_svc_desc_tab[1].desc.start_handle +DATA_TRANS_DECL_CHAR_TX_VAL; 
+        data_send.len = len;
+        data_send.data = data;
+
+        ln_ble_trans_svr_ntf(&data_send);
+    }
 }
 
 uint16_t zj_ble_get_mtu()
@@ -538,73 +521,78 @@ uint16_t zj_ble_get_mtu()
 
         g_mtu = 255;
     }
-	return g_mtu;
+    return g_mtu;
 }
-
 
 void zj_ble_adv_start()
 {
-//   if(g_ble_init_flag && !g_is_peripheral_connected){
+    if(1 != g_ble_init_flag)
+        return ;
 
-//     __device_adv();
-//   }
+    if(LE_ADV_STATE_INITIALIZED == le_adv_state_get() 
+            || LE_ADV_STATE_STOPING == le_adv_state_get() 
+            || LE_ADV_STATE_STOPED == le_adv_state_get()) {
+        ln_ble_adv_start();
+    }
 }
 
 void zj_ble_adv_stop()
 {
-//    ble_gap_adv_stop();
+    if(LE_ADV_STATE_STARTING == le_adv_state_get() 
+            || LE_ADV_STATE_STARTED == le_adv_state_get()) {
+        ln_ble_adv_stop();
+    }
 }
 
 void zj_ble_drv_deinit()
 {
-    // if(!g_ble_init_flag){
+    zj_ble_adv_stop();
+    zj_ble_scan_stop();
+    g_ble_init_flag = 0;
+}
 
-    //     return;
-    // }
-    // g_ble_init_flag = false;
-    // nimble_port_stop();
-    // nimble_port_deinit();
+static void zj_ble_task_entry(void *params)
+{
+    char *name;
+    uint8_t name_len;
 
-    // #ifdef CONFIG_WIFI_BEST_PERFORMANCE_OPTION
-    // vTaskDelay(100);
-    // esp_wifi_set_ps(WIFI_PS_NONE);
-    // ESP_LOGI(TAG,"WIFI_PS_NONE");
-    // #endif
-    // zj_adapter_post_event(ADAPT_EVT_BLE_DEINIT_DONE,NULL,NULL,0); 
+    ln_kv_ble_app_init();
+
+    name = zj_adapter_get_adv_name_config();
+    name_len = strlen(name);
+    //name max by sizeof(g_dev_name)
+    if(name_len > 22)
+        name_len = 22;
+    ln_kv_ble_name_store(name, name_len);
+
+    //full stack init
+    ln_ble_stack_init();
+
+    ln_ble_app_init();
+
+    while(1)
+    {
+        OS_Delay(10);
+    }
 }
 
 /*******************************************************/
 void zj_ble_drv_init()
 {
-    // if(g_ble_init_flag){
+    if(1 == g_ble_init_flag)
+        return;
 
-    //     return;
-    // }
-    // #ifdef CONFIG_WIFI_BEST_PERFORMANCE_OPTION
-    // esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
-    // ESP_LOGI(TAG,"WIFI_PS_MIN_MODEM");
-    // vTaskDelay(50);
-    // #endif
-    // g_ble_init_flag = true;
-    // nimble_port_init();
-    // /* Initialize the NimBLE host configuration. */
-    // ble_hs_cfg.reset_cb = bleprph_on_reset;
-    // ble_hs_cfg.sync_cb = bleprph_on_sync;
-    // ble_hs_cfg.gatts_register_cb = gatt_svr_register_cb;
-    // ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+    if(-1 == g_ble_init_flag) {
+        if(OS_OK != OS_ThreadCreate(&g_zj_ble_app_thread, "ZjBleAPP", zj_ble_task_entry, NULL, OS_PRIORITY_BELOW_NORMAL, ZJ_BLE_TASK_STACK_SIZE)) 
+        {
+            LN_ASSERT(1);
+        }
+    }
 
-    // int rc = gatt_svr_init();
-    // assert(rc == 0);
-
-    // /* Set the default device name. */
-    // rc = ble_svc_gap_device_name_set((char *)zj_adapter_get_adv_name_config());
-    // assert(rc == 0);
-
-    // /* XXX Need to have template for store */
-    // ble_store_config_init();
-
-    // nimble_port_freertos_init(bleprph_host_task);
-    // zj_adapter_post_event(ADAPT_EVT_BLE_INIT_DONE,NULL,NULL,0); 
+    if(1 != g_ble_init_flag) {
+        zj_adapter_post_event(ADAPT_EVT_BLE_INIT_DONE,NULL,NULL,0);
+        g_ble_init_flag = 1;
+    }
 }
 
 

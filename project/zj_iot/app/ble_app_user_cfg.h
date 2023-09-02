@@ -2,7 +2,7 @@
 #define _BLE_APP_USER_CONFIG_H_
 
 
-#define BLE_DEFAULT_ROLE                BLE_ROLE_PERIPHERAL
+#define BLE_DEFAULT_ROLE                BLE_ROLE_ALL
 
 #define BLE_DEFAULT_DEVICE_NAME         ("ln882h_combo")
 #define BLE_DEV_NAME_MAX_LEN            (40)

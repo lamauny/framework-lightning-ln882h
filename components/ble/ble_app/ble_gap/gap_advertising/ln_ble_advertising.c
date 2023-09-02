@@ -100,11 +100,6 @@ int ln_ble_adv_data_set(ln_adv_data_t *adv_data)
 
 int ln_ble_adv_scan_rsp_data_set(ln_adv_data_t *scan_rsp_data)
 {
-    if (ble_adv_mgr.adv_param.adv_type == GAPM_ADV_TYPE_LEGACY && scan_rsp_data->length > ADV_DATA_LEGACY_MAX){
-        return BLE_ERR_INVALID_PARAM;
-    }else if (ble_adv_mgr.adv_param.adv_type == GAPM_ADV_TYPE_EXTENDED && scan_rsp_data->length > ADV_DATA_EXTEND_MAX){
-        return BLE_ERR_INVALID_PARAM;
-    }
     struct gapm_set_adv_data_cmd *p_cmd = KE_MSG_ALLOC_DYN(GAPM_SET_ADV_DATA_CMD, TASK_GAPM, TASK_APP, gapm_set_adv_data_cmd, scan_rsp_data->length);
     p_cmd->operation    = GAPM_SET_SCAN_RSP_DATA;
     p_cmd->actv_idx     = ble_adv_mgr.adv_actv_idx;
