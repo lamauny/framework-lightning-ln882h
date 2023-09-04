@@ -26,7 +26,7 @@ uint32_t  mktimev(struct rtc_time *tm)
         .tm_hour = tm->tm_hour,
         .tm_mday = tm->tm_mday,
         .tm_mon = tm->tm_mon - 1,   /* - 1 */
-        .tm_year = tm->tm_year -1900, /* - 1900 */
+        .tm_year = tm->tm_year - 1900, /* - 1900 */
         .tm_wday = tm->tm_wday  /* 7 --> 0 */
     };
 
@@ -100,8 +100,10 @@ void  zj_rtc_get_time(struct rtc_time *RTC_return)
         RTC_return->tm_wday = 7;
     }
 
-    ZJ_LOG("local time: y:%d-m:%d-d:%d; h:%d-m:%d-s:%d-w:%d\r\n",
-        t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, t.tm_wday);
+    ZJ_LOG("local time: %d-%d-%d; %d:%d:%d-w:%d\r\n",
+        RTC_return->tm_year, RTC_return->tm_mon, RTC_return->tm_mday,
+        RTC_return->tm_hour, RTC_return->tm_min, RTC_return->tm_sec,
+        RTC_return->tm_wday);
 }
 
 uint32_t zj_get_current_timestamp()

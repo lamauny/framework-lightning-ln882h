@@ -24,10 +24,10 @@
 #include "zj_adapt_api.h"
 
 #define ZJ_LOG_TEST
-// #define ZJ_RTC_TEST
+#define ZJ_RTC_TEST
 // #define LN_LINUX_COMPAT_TEST
-#define ZJ_WIFI_TEST
-#define ZJ_BLE_TEST
+// #define ZJ_WIFI_TEST
+// #define ZJ_BLE_TEST
 // #define ZJ_GPIO_TEST
 // #define ZJ_USER_DATA_TEST
 // #define ZJ_OTA_TEST
@@ -79,7 +79,7 @@ static void zj_log_test(void)
 #endif
 
 #ifdef LN_LINUX_COMPAT_TEST
-#define TEST_TIME_ZONE (-8)
+#define TEST_TIME_ZONE (8)
 static void ln_time_test(void)
 {
     time_t t;
@@ -143,13 +143,13 @@ static void zj_rtc_test(void)
         uint32_t timestamp = 0;
         uint32_t timestamp1 = 0;
         struct rtc_time now = {
-            .tm_year = 2023 - 1900,
-            .tm_mon  = 8 - 1,
+            .tm_year = 2023,
+            .tm_mon  = 8,
             .tm_mday = 22,
             .tm_hour = 16,
             .tm_min  = 6,
             .tm_sec  = 30,
-            // .tm_wday = 2,
+            .tm_wday = 0
         };
         LOG(LOG_LVL_INFO, "=== rtc test ===\r\n");
         tz_set(8);
@@ -165,7 +165,7 @@ static void zj_rtc_test(void)
             timestamp1 = mktimev(&test);
 
             LOG(LOG_LVL_INFO, "struct time: %d-%d-%d; %d:%d:%d-w:%d\r\n",
-                test.tm_year + 1900, test.tm_mon + 1, test.tm_mday,
+                test.tm_year, test.tm_mon, test.tm_mday,
                 test.tm_hour, test.tm_min, test.tm_sec, test.tm_wday);
             LOG(LOG_LVL_INFO, "timestamp:%ld; %ld\r\n", timestamp, timestamp1);
             OS_MsDelay(1000);
@@ -258,7 +258,7 @@ void zj_ble_test(void)
     LOG(LOG_LVL_INFO, "ble init pass?%d\r\n", is_ble_init_finished());
 
     zj_ble_adv_start();
-    OS_MsDelay(5000);
+    OS_MsDelay(50000);
     zj_ble_adv_stop();
     OS_MsDelay(5000);
     zj_ble_scan_start();
