@@ -3,8 +3,8 @@
 
 #define PROTOCOL_VERSION                  10
 
-//#define APPCONFIG_OUTPUT_DRV_IIC
-#define APPCONFIG_OUTPUT_DRV_PWM
+#define APPCONFIG_OUTPUT_DRV_IIC
+// #define APPCONFIG_OUTPUT_DRV_PWM
 
 #ifdef APPCONFIG_OUTPUT_DRV_PWM        /* pwm输出的类型，在这里定义功能区分,iic输出类型的，通过读取media来区分iic芯片类型和参数 */
   //#define CUSTOMER_DIFF_610HZ      /* 客户差异化：pwm定制为611hz */

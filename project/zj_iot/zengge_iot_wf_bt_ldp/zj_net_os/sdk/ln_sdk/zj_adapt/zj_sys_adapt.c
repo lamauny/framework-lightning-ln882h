@@ -20,10 +20,10 @@ static uint8_t ln_wdt_is_inited = 0;
 static volatile uint8_t ln_wdt_is_enabled = 0;
 static OS_Thread_t g_adapt_wdt_thr = {.handle = NULL};
 
-uint32_t esp_timer_get_time(void)
-{
-    OS_GetTime();
-}
+// uint32_t esp_timer_get_time(void)
+// {
+//     OS_GetTime();
+// }
 
 /**
  * @brief get free heap

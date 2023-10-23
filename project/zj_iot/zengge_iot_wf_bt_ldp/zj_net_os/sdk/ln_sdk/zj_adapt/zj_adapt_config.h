@@ -76,7 +76,7 @@
 #define USE_ZG_KV_MODULE_OPTION               0               /*征极基于key值的保存模块*/
 #define USE_ZG_KV_LOCK                        0               /*lock*/
 
-extern uint32_t esp_timer_get_time(void);
+// extern uint32_t esp_timer_get_time(void);
 #define PORT_CONFIG_SYSTEM_TIME               OS_GetTime() / 1000                          /* 适配系统时间 */
 #define PROT_CONFIG_KEY_FLASH_SIZE            (4096)                                       /* 适配保存密钥的flash区域大小 */
 

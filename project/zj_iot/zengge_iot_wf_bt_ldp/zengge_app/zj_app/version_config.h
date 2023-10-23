@@ -17,9 +17,9 @@
 
 
 /* 设备类型定义 */
-//#define DEVICE_TYPE        0x35    //rgbwc bulb
+#define DEVICE_TYPE        0x35    //rgbwc bulb
 //#define DEVICE_TYPE        0x1E    //ceiling light
-#define DEVICE_TYPE        0x0E    //floor light
+// #define DEVICE_TYPE        0x0E    //floor light
 
 //#define DEVICE_TYPE        0x29    //rgbwc mirror bulb
 //#define DEVICE_TYPE        0x33    //rgb ir

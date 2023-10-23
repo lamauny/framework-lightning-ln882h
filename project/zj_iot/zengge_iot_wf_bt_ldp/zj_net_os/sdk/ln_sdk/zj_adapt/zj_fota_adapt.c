@@ -42,9 +42,31 @@ static bool g_ota_port_initialized = false;
 static uint8_t g_ota_result = 0;
 static uint8_t g_progress_comp = 0; // 只有进度有变化的时候才上报
 
-void ota_data_dec(uint8_t key,uint8_t *inoutdata,int len)
+int zj_ota_boot_addr_read(uint32_t *OTA_flash_start_addr)
 {
+    return 0;
+}
+int zj_ota_boot_update(uint32_t newAddr)
+{
+    return 0;
+}
+void zj_ota_erase_area(uint32_t boot_start_addr)
+{
+    return 0;
+}
+int zj_ota_write(uint32_t addr, uint8_t *dat,int len)
+{
+    return 0;
+}
 
+int zj_ota_write_end()
+{
+    return 0;
+}
+
+int zj_ota_read(uint32_t addr,uint8_t *dat,int len)
+{
+    return 0;
 }
 
 
