@@ -199,6 +199,8 @@ static int ln_gatt_mtu_changed_ind_handler(ke_msg_id_t const msgid,
 {
     struct gattc_mtu_changed_ind *param = (struct gattc_mtu_changed_ind *)p_param;
     uint8_t conidx = KE_IDX_GET(src_id);
+    extern uint16_t g_zj_mtu;
+    g_zj_mtu = param->mtu;
 
     LOG(LOG_LVL_INFO,"ln_gatt_mtu_changed_ind_handler  mtu:%d conidx:0x%x\r\n",param->mtu,conidx);
 

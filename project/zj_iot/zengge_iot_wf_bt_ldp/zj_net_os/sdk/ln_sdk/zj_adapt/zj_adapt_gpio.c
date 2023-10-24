@@ -9,8 +9,8 @@
 #define    ZJ_LOCAL_LOG_LVL LOG_LVL_INFO
 
 #undef ZJ_LOG
-#define ZJ_LOG(fmt, ...)  LOG(ZJ_LOCAL_LOG_LVL, "["TAG"] "fmt, ##__VA_ARGS__)
-
+//#define ZJ_LOG(fmt, ...)  LOG(ZJ_LOCAL_LOG_LVL, "["TAG"] "fmt, ##__VA_ARGS__)
+#define ZJ_LOG(fmt, ...)
 /**
  * GPIO mapping
  * [100 : 199] -> GPIOA  [100:115]
@@ -194,7 +194,7 @@ uint8_t zj_gpio_input_get(uint8_t io)
 
     if (io < 100 || io > 215 || (io < 200 && io > 115)) {
         ZJ_LOG("io not in range <%d>!\r\n", io);
-        return;
+        return 0;
     }
 
     if (io >= 200) {

@@ -12,7 +12,7 @@ static uint8_t g_adv_update_enable,g_relay_enable;
 static void __ble_update_condition_get_cb(void *param)
 {
    uint8_t *data = (uint8_t *)param;
-   g_adv_update_enable = *data;    
+   g_adv_update_enable = *data;
 }
 
 static void __btr_relay_condition_get_cb(void *param)
@@ -23,14 +23,14 @@ static void __btr_relay_condition_get_cb(void *param)
 
 static void __ble_adv_data_get_cb(void *param)
 {
-    uint8_t *adv_data = (uint8_t *)param;	
+    uint8_t *adv_data = (uint8_t *)param;
     memcpy(g_raw_adv_data,adv_data,BLE_ADV_DATA_LENGTH);
 }
 
 static void __ble_scanResp_get_cb(void *param)
 {
     uint8_t *data = (uint8_t *)param;
-    memcpy(g_raw_scan_rsp_data,data,31);   
+    memcpy(g_raw_scan_rsp_data,data,31);
 }
 
 static void __ble_name_get_cb(void *param)

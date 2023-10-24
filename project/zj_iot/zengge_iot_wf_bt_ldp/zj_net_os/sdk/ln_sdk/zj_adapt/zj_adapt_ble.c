@@ -85,11 +85,11 @@ typedef struct
 #define DATA_TRANS_1ST_RX_UUID      {0x01, 0xff}
 #define DATA_TRANS_1ST_TX_UUID      {0x02, 0xff}
 
-#define DATA_TRANS_2ND_SVR_UUID     {0xfe, 0xfe}
+#define DATA_TRANS_2ND_SVR_UUID     {0x00, 0xfe}
 #define DATA_TRANS_2ND_RX_UUID      {0x11, 0xff}
 #define DATA_TRANS_2ND_TX_UUID      {0x22, 0xff}
 
-static uint16_t g_mtu;
+uint16_t g_zj_mtu = 0;
 static int g_ble_init_flag = -1;
 static OS_Thread_t g_zj_ble_app_thread;
 static uint8_t g_btr_forward_p[26];
@@ -177,7 +177,7 @@ static struct user_svc_desc g_user_svc_desc_tab[DATA_TRANS_SVR_MAX] = {
     {
         .desc = {
             .start_handle   = LN_ATT_INVALID_HANDLE,
-            .svr_uuid_len   = 16,
+            .svr_uuid_len   = 2,
             .svr_uuid       = DATA_TRANS_1ST_SVR_UUID,
             .att_count      = sizeof(data_trans_1st_atts_db)/sizeof(data_trans_1st_atts_db[0]),
             .att_desc       = &data_trans_1st_atts_db,
@@ -479,18 +479,18 @@ void zj_ble_adv_update()
         OS_MsDelay(600);
         ln_ble_adv_start();
     }
-
 }
 
 uint8_t zj_ble_get_connected_status()
 {
+    LOG(LOG_LVL_INFO, "zj_ble_get_connected_status %d\r\n", ln_ble_is_connected());
     return ln_ble_is_connected();
 }
 
 void zj_ble_notify(uint8_t *data, int len)
 {
     ln_trans_svr_send_t data_send;
-
+    LOG(LOG_LVL_INFO, "zj_ble_notify\r\n");
     if(g_user_svc_desc_tab[0].ccc && LN_ATT_INVALID_HANDLE != g_user_svc_desc_tab[0].desc.start_handle) {
         data_send.conn_idx = 0;
         data_send.hdl = g_user_svc_desc_tab[0].desc.start_handle +DATA_TRANS_DECL_CHAR_TX_VAL; 
@@ -517,11 +517,12 @@ void zj_ble_ota_notify(uint8_t *data, int len)
 
 uint16_t zj_ble_get_mtu()
 {
-    if(g_mtu > 255){
+    if(g_zj_mtu > 512){
 
-        g_mtu = 255;
+        g_zj_mtu = 512;
     }
-    return g_mtu;
+    LOG(LOG_LVL_INFO, "zj_ble_get_mtu %d\r\n", g_zj_mtu);
+    return g_zj_mtu;
 }
 
 void zj_ble_adv_start()
