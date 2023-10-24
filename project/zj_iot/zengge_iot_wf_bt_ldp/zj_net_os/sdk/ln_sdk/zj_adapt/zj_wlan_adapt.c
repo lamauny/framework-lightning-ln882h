@@ -376,32 +376,82 @@ int zj_restart_system(void)
 
 void zj_scan_router(zj_adapter_evt_t evt)
 {
+#define CONNECTED_SCAN_TIMES     (6)
+#define DEFAULT_SCAN_TIMES       (1)
+#define SCAN_TIMEOUT             (1500)
+    wifi_scan_cfg_t   scan_cfg   = {0,};
+    wifi_mode_t mode;
+    int8_t            scan_cnt   = DEFAULT_SCAN_TIMES;
+    wifi_sta_status_t sta_status = WIFI_STA_STATUS_STARTUP;
+    zj_wifi_scan_inf_t *wifi_scan_buff = NULL, *scan_ptr = NULL;
+    ap_info_t *ap_info = NULL;
+
     ZJ_LOG("[%s:%d] evt:%d\r\n", __func__, __LINE__, evt);
+
+    sysparam_sta_scan_cfg_get(&scan_cfg);
 
     if (!g_is_wifi_initialized) {
         zj_wifi_drv_init();
     }
 
-    if (WIFI_MODE_STATION != wifi_current_mode_get()) {
+    //1. creat sem, reg scan complete callback.
+    if (OS_OK != OS_SemaphoreCreateBinary(&s_sem_scan))
+    {
         return;
     }
 
-    {
-        #define CONNECTED_SCAN_TIMES     (6)
-        #define DEFAULT_SCAN_TIMES       (1)
-        #define SCAN_TIMEOUT             (1500)
+    mode = wifi_current_mode_get();
+    if (WIFI_MODE_STATION != mode) {
+        int ap_info_items = 20;
+        ap_info_t *ap_info_rst = NULL;
+        int ap_info_rst_items = 0;
 
-        int8_t            scan_cnt   = DEFAULT_SCAN_TIMES;
-        wifi_sta_status_t sta_status = WIFI_STA_STATUS_STARTUP;
-        wifi_scan_cfg_t   scan_cfg   = {0,};
-        sysparam_sta_scan_cfg_get(&scan_cfg);
-
-        //1. creat sem, reg scan complete callback.
-        if (OS_OK != OS_SemaphoreCreateBinary(&s_sem_scan))
-        {
-            return;
+        ap_info = OS_Malloc(ap_info_items * sizeof(ap_info_t));
+        if (!ap_info) {
+            goto __exit;
         }
 
+        wifi_softap_scan(&scan_cfg, ap_info, ap_info_items, wifi_scan_complete_cb);
+        OS_SemaphoreWait(&s_sem_scan, OS_WAIT_FOREVER);
+
+        wifi_softap_scan_results_get(&ap_info_rst, &ap_info_rst_items);
+        LOG(LOG_LVL_INFO, "ap scan results:%d\r\n", ap_info_rst_items);
+
+        if (ap_info_rst_items <= 0) {
+            LOG(LOG_LVL_INFO, "no scan result!\r\n");
+            goto __exit;
+        }
+
+        // malloc memory to store ap list,and free in tuya_hal_wifi_release_ap()
+        scan_ptr = wifi_scan_buff = OS_Malloc(ap_info_rst_items * sizeof(zj_wifi_scan_inf_t));
+        if(NULL == wifi_scan_buff) {
+            LOG(LOG_LVL_ERROR, "no memory!\r\n");
+            goto __exit;
+        }
+
+        memset(wifi_scan_buff, 0, (sizeof(zj_wifi_scan_inf_t) * ap_info_rst_items));
+
+
+        for (int i = 0; i < ap_info_rst_items; i++) {
+            LOG(LOG_LVL_INFO, "%10.10s   [%02x:%02x:%02x:%02x:%02x:%02x]"
+                "   %4d   %2d   %4d\r\n", 
+                ap_info_rst[i].ssid, ap_info_rst[i].bssid[0],
+                ap_info_rst[i].bssid[1], ap_info_rst[i].bssid[2],
+                ap_info_rst[i].bssid[3], ap_info_rst[i].bssid[4],
+                ap_info_rst[i].bssid[5], ap_info_rst[i].rssi,
+                ap_info_rst[i].channel, ap_info_rst[i].authmode);
+
+                scan_ptr->channel = ap_info_rst[i].channel;
+                scan_ptr->rssi    = ap_info_rst[i].rssi;
+                memcpy(scan_ptr->bssid, ap_info_rst[i].bssid, BSSID_LEN);
+                memcpy(scan_ptr->ssid,  ap_info_rst[i].ssid,  33);
+                scan_ptr->ssid[32] = '\0';
+
+                scan_ptr->authmode = ap_info_rst[i].authmode;
+                scan_ptr++;
+        }
+        zj_adapter_post_event(evt, wifi_scan_buff, NULL, ap_info_rst_items);
+    } else {
         wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, &wifi_scan_complete_cb);
 
         //2. start scan, wait scan complete
@@ -425,7 +475,6 @@ void zj_scan_router(zj_adapter_evt_t evt)
             ln_list_t *list;
             uint8_t node_count = 0;
             ap_info_node_t *pnode;
-            zj_wifi_scan_inf_t *wifi_scan_buff = NULL, *scan_ptr = NULL;
 
             wifi_manager_ap_list_update_enable(LN_FALSE);
             wifi_manager_get_ap_list(&list, &node_count);
@@ -473,12 +522,22 @@ __finish:
             }
         }
 
-        OS_SemaphoreDelete(&s_sem_scan);
+        // OS_SemaphoreDelete(&s_sem_scan);
         wifi_manager_ap_list_update_enable(LN_TRUE);
         wifi_manager_cleanup_scan_results();
-        s_sem_scan.handle = NULL;
+        // s_sem_scan.handle = NULL;
     }
+
     ZJ_LOG("scan finished!\r\n");
+    // return;
+
+__exit:
+    OS_SemaphoreDelete(&s_sem_scan);
+    s_sem_scan.handle = NULL;
+    if (ap_info) {
+        OS_Free(ap_info);
+        ap_info = NULL;
+    }
 }
 
 

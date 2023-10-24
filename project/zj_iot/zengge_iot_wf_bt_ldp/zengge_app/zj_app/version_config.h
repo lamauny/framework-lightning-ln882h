@@ -34,7 +34,7 @@
 
  /*通过编译脚本区分不同的编译平台*/
 #ifdef IS_LN_PLATFORM
-    #define BLE_CHIP_ID 0x5D  /* This configuration is provided by Zhengji */
+    #define BLE_CHIP_ID 0x52  /* This configuration is provided by Zhengji */
     #define CHIP_MANUFACTURER "LN"
 #elif defined(IS_BK_PLATFORM)  /*bkmake博通平台*/
   #ifdef CONFIG_MAC_COMPATIBILITY
