@@ -66,10 +66,10 @@ int zj_gpio_intr_set_config(uint8_t io,zj_gpio_int_type_t type,void *serv)
     }
 
     if (io >= 200) {
-        pin = io - 200;
+        pin = 1 << (io - 200);
         gpio_base = GPIOB_BASE;
     } else {
-        pin = io - 100;
+        pin = 1 << (io - 100);
         gpio_base = GPIOA_BASE;
     }
 
@@ -107,10 +107,10 @@ void zj_gpio_intr_disable(uint8_t io)
     }
 
     if (io >= 200) {
-        pin = io - 200;
+        pin = 1 << (io - 200);
         gpio_base = GPIOB_BASE;
     } else {
-        pin = io - 100;
+        pin = 1 << (io - 100);
         gpio_base = GPIOA_BASE;
     }
     hal_gpio_pin_it_en(gpio_base, pin, HAL_DISABLE);
@@ -129,10 +129,10 @@ void zj_gpio_intr_enable(uint8_t io)
     }
 
     if (io >= 200) {
-        pin = io - 200;
+        pin = 1 << (io - 200);
         gpio_base = GPIOB_BASE;
     } else {
-        pin = io - 100;
+        pin = 1 << (io - 100);
         gpio_base = GPIOA_BASE;
     }
 
@@ -171,10 +171,10 @@ void zj_gpio_output_set(uint8_t io,uint8_t status)
     }
 
     if (io >= 200) {
-        pin = io - 200;
+        pin = 1 << (io - 200);
         gpio_base = GPIOB_BASE;
     } else {
-        pin = io - 100;
+        pin = 1 << (io - 100);
         gpio_base = GPIOA_BASE;
     }
 
@@ -198,10 +198,10 @@ uint8_t zj_gpio_input_get(uint8_t io)
     }
 
     if (io >= 200) {
-        pin = io - 200;
+        pin = 1 << (io - 200);
         gpio_base = GPIOB_BASE;
     } else {
-        pin = io - 100;
+        pin = 1 << (io - 100);
         gpio_base = GPIOA_BASE;
     }
 

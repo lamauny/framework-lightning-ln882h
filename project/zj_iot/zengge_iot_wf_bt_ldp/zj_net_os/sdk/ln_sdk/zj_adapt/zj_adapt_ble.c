@@ -517,9 +517,9 @@ void zj_ble_ota_notify(uint8_t *data, int len)
 
 uint16_t zj_ble_get_mtu()
 {
-    if(g_zj_mtu > 512){
+    if(g_zj_mtu > 255){
 
-        g_zj_mtu = 512;
+        g_zj_mtu = 255;
     }
     LOG(LOG_LVL_INFO, "zj_ble_get_mtu %d\r\n", g_zj_mtu);
     return g_zj_mtu;

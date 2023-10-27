@@ -100,8 +100,8 @@
 #define PORT_CONFIG_IIC_SDA_PIN2              
 #define PORT_CONFIG_IIC_SCL_PIN2              
 
-#define PORT_CONFIG_IIC_SDA_PIN               105 // GPIOA5
-#define PORT_CONFIG_IIC_SCL_PIN               106 // GPIOA6
+#define PORT_CONFIG_IIC_SDA_PIN               205 // GPIOB5
+#define PORT_CONFIG_IIC_SCL_PIN               206 // GPIOB6
 
 /*IIC电流适配 */
 #define IIC_RGB_7W_mA                         RGB_19mA

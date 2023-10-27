@@ -42,7 +42,8 @@ static OS_Semaphore_t s_sem_scan = {.handle = NULL};
 static void wifi_scan_complete_cb(void * arg)
 {
     LN_UNUSED(arg);
-    OS_SemaphoreRelease(&s_sem_scan);
+    if (s_sem_scan.handle)
+        OS_SemaphoreRelease(&s_sem_scan);
     LOG(LOG_LVL_INFO, "adapt wifi scan complete\r\n");
 }
 
@@ -179,17 +180,28 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
 
 void zj_wifi_STA_Stop()
 {
-    ZJ_LOG("[%s:%d] work mode:%d\r\n",
-        __func__, __LINE__, wifi_current_mode_get());
+    wifi_mode_t mode;
+    wifi_sta_status_t status;
+
+    mode = wifi_current_mode_get();
+    wifi_get_sta_status(&status);
+    ZJ_LOG("[%s:%d] work mode:%d, status:%d\r\n",
+        __func__, __LINE__, mode, status);
 
     if (!g_is_wifi_initialized) {
         return;
     }
 
-    wifi_sta_disconnect();
-    wifi_stop();
-    netdev_set_state(NETIF_IDX_STA, NETDEV_DOWN);
+    if (mode == WIFI_MODE_STATION) {
+        if (status == WIFI_STA_STATUS_CONNECTING || status == WIFI_STA_STATUS_CONNECTED) {
+            wifi_sta_disconnect();
+        }
+        netdev_set_state(NETIF_IDX_STA, NETDEV_DOWN);
+    } else {
+        netdev_set_state(NETIF_IDX_AP, NETDEV_DOWN);
+    }
 
+    wifi_stop();
     g_wifi_state = WIFI_STATE_IDLE;
 }
 
@@ -368,6 +380,7 @@ int zj_restart_system(void)
 {
     static TimerHandle_t g_reboot_timer;
     if(g_reboot_timer == NULL) {
+        ZJ_LOG("restart timer time:%dms\r\n", g_restart_time);
         g_reboot_timer = xTimerCreate("rst_tmr", g_restart_time / portTICK_PERIOD_MS, 0,(void *)0,(void *)reboot_timer_cb);
         xTimerStart(g_reboot_timer,0);
     }
@@ -549,6 +562,7 @@ void zj_wifi_get_ip_info(char *ip_addr)
 
     netdev_get_ip_info(netdev_get_active(), &ip);
     sprintf(ip_addr, "%s", ip4addr_ntoa((ip4_addr_t *)&ip.ip.addr));
+    ZJ_LOG("IP:%s\r\n", ip_addr);
 }
 
 void zj_wifi_get_gateway(char *ip_addr)
@@ -671,12 +685,13 @@ int zj_get_ap_rssi()
 {
     int8_t rssi = 0;
     wifi_sta_get_rssi(&rssi);
+    ZJ_LOG("AP RSSI:%d\r\n", rssi);
     return (int)rssi;
 }
 
 uint8_t zj_get_lan_code()
 {
-    ZJ_LOG("[%s:%d]\r\n", __func__, __LINE__);
+    ZJ_LOG("[%s:%d] lan code:%d\r\n", __func__, __LINE__, g_wifi_state);
     if(g_wifi_state == WIFI_STATE_CONNECTED_IP_GOT) {
         return 0;
     } else {
