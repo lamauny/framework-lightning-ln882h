@@ -226,19 +226,20 @@ void zj_wifi_AP_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_le
     }
 
     //1. ap mac get
-     if (SYSPARAM_ERR_NONE != sysparam_softap_mac_get(mac_addr)) {
+     if (SYSPARAM_ERR_NONE != sysparam_sta_mac_get(mac_addr)) {
         LOG(LOG_LVL_ERROR, "[%s]sta mac get failed!!!\r\n", __func__);
         return;
     }
 
-    if (mac_addr[0] == SOFTAP_MAC_ADDR0 &&
-        mac_addr[1] == SOFTAP_MAC_ADDR1 &&
-        mac_addr[2] == SOFTAP_MAC_ADDR2 &&
-        mac_addr[3] == SOFTAP_MAC_ADDR3 &&
-        mac_addr[4] == SOFTAP_MAC_ADDR4 &&
-        mac_addr[5] == SOFTAP_MAC_ADDR5) {
+    if (mac_addr[0] == STA_MAC_ADDR0 &&
+        mac_addr[1] == STA_MAC_ADDR1 &&
+        mac_addr[2] == STA_MAC_ADDR2 &&
+        mac_addr[3] == STA_MAC_ADDR3 &&
+        mac_addr[4] == STA_MAC_ADDR4 &&
+        mac_addr[5] == STA_MAC_ADDR5) {
         ln_generate_random_mac(mac_addr);
         sysparam_softap_mac_update((const uint8_t *)mac_addr);
+        sysparam_sta_mac_update((const uint8_t *)mac_addr);
     }
 
     srand(PORT_CONFIG_SYSTEM_TIME);
