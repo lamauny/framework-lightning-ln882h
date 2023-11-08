@@ -466,8 +466,8 @@ wlib_thread_t wlib_os_thread_creat(const char *name, void *entry, void *arg)
 {
     #define WIFI_MAC_TASK_STACK_SIZE    (4*512)
     #define WIFI_CFG_TASK_STACK_SIZE    (8*256)//5*256
-    #define WIFI_MAC_TASK_PRIORITY      (OS_PRIORITY_REAL_TIME)
-    #define WIFI_CFG_TASK_PRIORITY      (OS_PRIORITY_NORMAL)
+    #define WIFI_MAC_TASK_PRIORITY      (7)
+    #define WIFI_CFG_TASK_PRIORITY      (OS_PRIORITY_ABOVE_NORMAL)
 
     OS_Priority priority;
     uint32_t stksize;
@@ -477,10 +477,10 @@ wlib_thread_t wlib_os_thread_creat(const char *name, void *entry, void *arg)
     }
 
     if (strstr(name, "mac")) {
-        priority = OS_PRIORITY_REAL_TIME;
+        priority = 7;
         stksize  = WIFI_MAC_TASK_STACK_SIZE;
     } else if (strstr(name, "cfg")) {
-        priority = OS_PRIORITY_NORMAL;
+        priority = 5;
         stksize  = WIFI_CFG_TASK_STACK_SIZE;
     } else {
         return NULL;

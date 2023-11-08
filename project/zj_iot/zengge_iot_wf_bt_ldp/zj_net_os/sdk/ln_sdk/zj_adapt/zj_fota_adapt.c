@@ -395,6 +395,7 @@ flag_exit:
             zj_adapter_post_event(ADAPT_EVT_OTA_STATUS, &g_ota_result, NULL, 100);
 
             update_ota_state();
+            OS_MsDelay(10);
             ln_chip_reboot();
             while(1);
         } else {

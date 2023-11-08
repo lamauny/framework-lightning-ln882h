@@ -10,7 +10,7 @@
 //#define BLE_USE_STATIC_PUBLIC_ADDR
 #define BLE_DEFAULT_PUBLIC_ADDR         {0x56, 0x34, 0x12, 0x01, 0xFF, 0x00}
 
-#define BLE_CONFIG_AUTO_ADV             (0)
+#define BLE_CONFIG_AUTO_ADV             (1)
 #define BLE_CONFIG_AUTO_SCAN            (0)
 
 /* enable ble data encrypt */

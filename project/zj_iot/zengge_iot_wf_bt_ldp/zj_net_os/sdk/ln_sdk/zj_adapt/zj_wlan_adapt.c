@@ -28,7 +28,7 @@
 
 #define ZJ_LOG(fmt, ...)  LOG(ZJ_LOCAL_LOG_LVL, "["TAG"]"fmt, ##__VA_ARGS__)
 
-#define PM_WIFI_DEFAULT_PS_MODE           (WIFI_NO_POWERSAVE)
+#define PM_WIFI_DEFAULT_PS_MODE           (WIFI_MAX_POWERSAVE)
 #define WIFI_USER_USE_WPA3                (1) /* 0: Not use; 1: Use */
 
 static uint32_t g_restart_time = 1000;
@@ -38,6 +38,10 @@ static bool g_wifi_sta_stop_flag = false;
 static bool g_is_wifi_initialized = false;
 static uint8_t psk_value[40]      = {0x0};
 static OS_Semaphore_t s_sem_scan = {.handle = NULL};
+
+
+extern uint8_t is_ble_scan_enable(void);
+extern void __scan_enable(uint8_t type, uint16_t interval, uint16_t wind);
 
 static void wifi_scan_complete_cb(void * arg)
 {
@@ -59,6 +63,14 @@ static void wifi_disconnect_cb(void *arg)
     LN_UNUSED(arg);
     g_wifi_state = WIFI_STATE_IDLE;
     // wifi_set_allow_cpu_sleep_flag(0);
+
+    wifi_sta_set_powersave(WIFI_NO_POWERSAVE);
+    
+    if (is_ble_scan_enable()) {
+        __scan_enable(0, 0, 0);
+        __scan_enable(1, 96, 48);
+    }
+
     zj_adapter_post_event(ADAPT_EVT_WIFI_DISCONNECTED,NULL,NULL,0);
 }
 
@@ -72,6 +84,13 @@ static void wifi_get_ip_cb(struct netif *nif)
 {
     LN_UNUSED(nif);
     g_wifi_state = WIFI_STATE_CONNECTED_IP_GOT;
+
+    wifi_sta_set_powersave(WIFI_MAX_POWERSAVE);
+    if (is_ble_scan_enable()) {
+        __scan_enable(0, 0, 0);
+        __scan_enable(1, 96, 88);
+    }
+
     zj_adapter_post_event(ADAPT_EVT_WIFI_CONNECTED,NULL,NULL,0);
 }
 
@@ -172,6 +191,14 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
     }
 
     wifi_set_11n_enable(0);
+
+    if (is_ble_scan_enable()) {
+        __scan_enable(0, 0, 0);
+        __scan_enable(1, 96, 48);
+    }
+
+    *(volatile int *)(0x400121F8) = 0x003F; // BLE default PTI == 0, wifi first
+
     wifi_sta_connect_v2(&connect, &scan_cfg, 30);
     g_wifi_state = WIFI_STATE_CONNECTING;
 
@@ -345,6 +372,7 @@ void zj_wifi_AP_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_le
 
     wifi_softap_set_max_supp_sta_num(3);
     LOG(LOG_LVL_INFO, "wifi softap start, max supp <3> sta!\r\n");
+    *(volatile int *)(0x400121F8) = 0x003F; // BLE default PTI == 0, wifi first
 }
 
 void zj_wifi_AP_Stop()

@@ -43,11 +43,11 @@ enum {
     BTR_FORWARD_ADV,
 };
 
-enum {
-    BLE_STATE_UNINITIALIZED = 0,
-    BLE_STATE_DISABLE,
-    BLE_STATE_ENABLE,
-};
+// enum {
+//     BLE_STATE_UNINITIALIZED = 0,
+//     BLE_STATE_DISABLE,
+//     BLE_STATE_ENABLE,
+// };
 #define CHAR_VAL_MAX_LEN    1024
 
 #define ADV_SCAN_UNIT(_ms) ((_ms) * 8 / 5)
@@ -95,7 +95,7 @@ typedef struct
 #define DATA_TRANS_2ND_TX_UUID      {0x22, 0xff}
 
 uint16_t g_zj_mtu = 0;
-static int g_ble_init_flag = BLE_STATE_UNINITIALIZED;
+static int g_ble_init_flag = -1;// BLE_STATE_UNINITIALIZED;
 static OS_Thread_t g_zj_ble_app_thread;
 static uint8_t g_btr_forward_p[26];
 
@@ -294,6 +294,9 @@ static void ln_ble_disconnect_cb(void *arg)
 
     if((ble_role & BLE_ROLE_PERIPHERAL)) {
         //ln_ble_adv_start();
+        if (1 == g_ble_init_flag) {
+            ln_ble_adv_start();
+        }
 
 #if (BLE_DATA_TRANS_SERVER)
         for(int i=0;i<DATA_TRANS_SVR_MAX;i++)
@@ -452,8 +455,8 @@ void bleprph_host_task(void *param)
 
 void zj_ble_scan_stop()
 {
-    if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
-        return ;
+    // if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
+    //     return ;
 
     if(LE_SCAN_STATE_STARTING == le_scan_state_get() 
             || LE_SCAN_STATE_STARTED == le_scan_state_get()) {
@@ -461,16 +464,43 @@ void zj_ble_scan_stop()
     }
 }
 
+static uint8_t is_ble_scan_en = 0;
+uint8_t is_ble_scan_enable(void) {
+    return is_ble_scan_en;
+}
+
+void __scan_enable(uint8_t type, uint16_t interval, uint16_t wind)
+{
+    LOG(LOG_LVL_INFO, "scan_enable=%d", type);
+
+    if(type) {
+        if(le_scan_state_get() > LE_SCAN_STATE_STARTED || le_scan_state_get() == LE_SCAN_STATE_INITIALIZED) {
+            
+            le_scan_mgr_info_get()->scan_param.scan_intv    = interval;//123;//123;//64; //  //N *0.625 = xxx ms
+            le_scan_mgr_info_get()->scan_param.scan_wd      = wind;//53;//50;//53; //32; //  //N *0.625 = xxx ms
+            le_scan_mgr_info_get()->scan_param.dup_filt_pol = GAPM_DUP_FILT_DIS;//GAPM_DUP_FILT_EN;//GAPM_DUP_FILT_DIS;
+		    le_scan_mgr_info_get()->scan_param.prop         = GAPM_SCAN_PROP_PHY_1M_BIT;
+            le_scan_mgr_info_get()->scan_param.type         = GAPM_SCAN_TYPE_OBSERVER;
+
+            ln_ble_scan_start(&le_scan_mgr_info_get()->scan_param);
+            is_ble_scan_en = 1;
+            LOG(LOG_LVL_INFO, "scan_enable=>ln_ble_scan_start");
+        }
+            
+    } else {
+        if(LE_SCAN_STATE_STARTING == le_scan_state_get() || LE_SCAN_STATE_STARTED == le_scan_state_get()) {
+            ln_ble_scan_stop();
+            is_ble_scan_en = 0;
+            LOG(LOG_LVL_INFO, "scan_enable=>ln_ble_scan_stop");
+        }
+    }
+}
+
 void zj_ble_scan_start()
 {
-    if(BLE_STATE_ENABLE != g_ble_init_flag)
-        return ;
-
-    if(LE_SCAN_STATE_INITIALIZED == le_adv_state_get()
-            ||LE_SCAN_STATE_STOPING == le_scan_state_get() 
-            || LE_SCAN_STATE_STOPED == le_scan_state_get()) {
-        ln_ble_scan_start(&le_scan_mgr_info_get()->scan_param);
-    }
+//     if(BLE_STATE_ENABLE != g_ble_init_flag)
+        // return ;
+    __scan_enable(1, 96, 48);
 }
 
 void zj_btr_adv_payload_update(uint8_t *p)
@@ -480,6 +510,9 @@ void zj_btr_adv_payload_update(uint8_t *p)
 
 void zj_ble_adv_update()
 {
+    // if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
+        OS_MsDelay(600);
+
     if(zj_adapter_post_adv_update_condition_get()){
         ln_ble_adv_stop();
         OS_MsDelay(600);
@@ -533,8 +566,8 @@ uint16_t zj_ble_get_mtu()
 
 void zj_ble_adv_start()
 {
-    if(BLE_STATE_ENABLE != g_ble_init_flag)
-        return ;
+    // if(BLE_STATE_ENABLE != g_ble_init_flag)
+    //     return ;
 
     if(LE_ADV_STATE_INITIALIZED == le_adv_state_get() 
             || LE_ADV_STATE_STOPING == le_adv_state_get() 
@@ -545,8 +578,8 @@ void zj_ble_adv_start()
 
 void zj_ble_adv_stop()
 {
-    if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
-        return ;
+    // if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
+    //     return ;
 
     if(LE_ADV_STATE_STARTING == le_adv_state_get() 
             || LE_ADV_STATE_STARTED == le_adv_state_get()) {
@@ -558,7 +591,7 @@ void zj_ble_drv_deinit()
 {
     zj_ble_adv_stop();
     zj_ble_scan_stop();
-    g_ble_init_flag = BLE_STATE_DISABLE;
+    g_ble_init_flag = 0; // BLE_STATE_DISABLE;
 }
 
 static void zj_ble_task_entry(void *params)
@@ -580,8 +613,8 @@ static void zj_ble_task_entry(void *params)
 
     ln_ble_app_init();
 
-    zj_adapter_post_event(ADAPT_EVT_BLE_INIT_DONE,NULL,NULL,0);
-    g_ble_init_flag = BLE_STATE_ENABLE;
+    // zj_adapter_post_event(ADAPT_EVT_BLE_INIT_DONE,NULL,NULL,0);
+    // g_ble_init_flag = BLE_STATE_ENABLE;
     while(1)
     {
         OS_Delay(10);
@@ -591,14 +624,18 @@ static void zj_ble_task_entry(void *params)
 /*******************************************************/
 void zj_ble_drv_init()
 {
-    if(BLE_STATE_UNINITIALIZED == g_ble_init_flag) {
+    if (1 == g_ble_init_flag)
+        return;
+    if(-1 == g_ble_init_flag) {
         if(OS_OK != OS_ThreadCreate(&g_zj_ble_app_thread, "ZjBleAPP", zj_ble_task_entry, NULL, OS_PRIORITY_BELOW_NORMAL, ZJ_BLE_TASK_STACK_SIZE)) 
         {
             LN_ASSERT(1);
         }
-    } else if(BLE_STATE_DISABLE == g_ble_init_flag) {
+    }
+    
+    if(1 != g_ble_init_flag) {
         zj_adapter_post_event(ADAPT_EVT_BLE_INIT_DONE,NULL,NULL,0);
-        g_ble_init_flag = BLE_STATE_ENABLE;
+        g_ble_init_flag = 1;
     } else {
         //had inited, ignore
     }
