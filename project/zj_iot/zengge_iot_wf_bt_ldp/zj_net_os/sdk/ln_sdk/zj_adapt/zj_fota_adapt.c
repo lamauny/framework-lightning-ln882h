@@ -114,9 +114,9 @@ static int ota_download_precheck(uint32_t app_offset, image_hdr_t * ota_hdr)
         // check version
         if (((ota_hdr->ver.ver_major << 8) + ota_hdr->ver.ver_minor) == \
             ((app_hdr->ver.ver_major << 8) + app_hdr->ver.ver_minor)) {
-            LOG(LOG_LVL_ERROR, "[%s:%d] same version, do not upgrade!\r\n",
+            LOG(LOG_LVL_ERROR, "[%s:%d] same version, force upgrade!\r\n",
                     __func__, __LINE__);
-            goto ret_err;
+            // goto ret_err;
         }
 
         // check file size
@@ -395,9 +395,11 @@ flag_exit:
             zj_adapter_post_event(ADAPT_EVT_OTA_STATUS, &g_ota_result, NULL, 100);
 
             update_ota_state();
-            OS_MsDelay(10);
-            ln_chip_reboot();
-            while(1);
+            /**
+             * Note:
+             * Do not reboot here, need return 0 when verify success!
+            */
+            return 0;
         } else {
             g_ota_result = 6;
             zj_adapter_post_event(ADAPT_EVT_OTA_STATUS, &g_ota_result, NULL, 100);
