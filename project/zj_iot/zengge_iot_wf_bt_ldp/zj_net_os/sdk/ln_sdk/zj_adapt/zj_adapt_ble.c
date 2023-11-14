@@ -617,7 +617,7 @@ static void zj_ble_task_entry(void *params)
     // g_ble_init_flag = BLE_STATE_ENABLE;
     while(1)
     {
-        OS_Delay(10);
+        OS_Delay(1000);
     }
 }
 
@@ -627,7 +627,7 @@ void zj_ble_drv_init()
     if (1 == g_ble_init_flag)
         return;
     if(-1 == g_ble_init_flag) {
-        if(OS_OK != OS_ThreadCreate(&g_zj_ble_app_thread, "ZjBleAPP", zj_ble_task_entry, NULL, OS_PRIORITY_BELOW_NORMAL, ZJ_BLE_TASK_STACK_SIZE)) 
+        if(OS_OK != OS_ThreadCreate(&g_zj_ble_app_thread, "ZjBleAPP", zj_ble_task_entry, NULL, OS_PRIORITY_HIGH, ZJ_BLE_TASK_STACK_SIZE)) 
         {
             LN_ASSERT(1);
         }

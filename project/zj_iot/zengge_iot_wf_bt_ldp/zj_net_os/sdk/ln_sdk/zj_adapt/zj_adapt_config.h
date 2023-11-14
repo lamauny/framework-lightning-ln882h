@@ -56,7 +56,7 @@
 #define PORT_CONFIG_LIGHT_REMOTE_TASK_PRIO    (2) // (4)
 #define PORT_CONFIG_TCP_SERVER_TASK_PRIO      (3) // (12)
 #define PORT_CONFIG_TCP_CLIENT_TASK_PRIO      (4) // (13)
-#define PORT_CONFIG_TCP_CLIENT_SEND_TASK_PRIO (3) // (10)
+#define PORT_CONFIG_TCP_CLIENT_SEND_TASK_PRIO (5) // (10)
 #define PORT_CONFIG_UDP_SERVER_TASK_PRIO      (5) // (16)
 #define PORT_CONFIG_TIMER_CLOCK_TASK_PRIO     (2) // (2)
 #define PORT_CONFIG_AUTO_REPORT_TASK_PRIO     (2) // (3)
@@ -68,7 +68,7 @@
 #define PORT_CONFIG_BT_REMOTE_EVENT_TASK_PRIO (4) // (6)  
 #define PORT_CONFIG_KEY_TASK_PRIO             (5) // (15)
 #define PORT_CONFIG_BLE_TASK_PRIO             (5) // (15)
-#define ZG_DATA_TASK_PRIO                     (3) // (7)
+#define ZG_DATA_TASK_PRIO                     (5) // (7)
 #define PORT_CONFIG_NET_DIAGNOSIS_TASK_PRIO   (4) // (15)
 
 #define PORT_CONFIG_UINT32_T_IS_LUI           /*uint32_t is long unsigned int*/

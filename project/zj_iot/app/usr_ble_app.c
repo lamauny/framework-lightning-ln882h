@@ -781,7 +781,7 @@ void ble_app_task_entry(void *params)
 
 void ble_creat_usr_app_task(void)
 {
-    if(OS_OK != OS_ThreadCreate(&ble_g_usr_app_thread, "BleUsrAPP", ble_app_task_entry, NULL, OS_PRIORITY_BELOW_NORMAL, BLE_USR_APP_TASK_STACK_SIZE)) 
+    if(OS_OK != OS_ThreadCreate(&ble_g_usr_app_thread, "BleUsrAPP", ble_app_task_entry, NULL, OS_PRIORITY_HIGH, BLE_USR_APP_TASK_STACK_SIZE)) 
     {
         LN_ASSERT(1);
     }
