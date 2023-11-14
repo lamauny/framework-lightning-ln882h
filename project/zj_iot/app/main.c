@@ -20,6 +20,21 @@
 #include "usr_app.h"
 #include "ln_ble_app_default_cfg.h"
 
+#include "stdlib.h"
+
+#if defined(__CC_ARM)
+void *$Sub$$malloc(size_t size)
+{
+    void *addr = OS_Malloc(size);
+    return addr;
+}
+
+void $Sub$$free(void *addr)
+{
+    OS_Free(addr);
+}
+#endif
+
 int main (int argc, char* argv[])
 {
     LN_UNUSED(argc);
