@@ -210,7 +210,7 @@ int ln_ble_scan_mgr_init(void)
 
     ble_scan_mgr.scan_param.type            = GAPM_SCAN_TYPE_OBSERVER;
     ble_scan_mgr.scan_param.prop            = GAPM_SCAN_PROP_PHY_1M_BIT | GAPM_SCAN_PROP_PHY_CODED_BIT;
-    ble_scan_mgr.scan_param.dup_filt_pol    = GAPM_DUP_FILT_EN;
+    ble_scan_mgr.scan_param.dup_filt_pol    = GAPM_DUP_FILT_DIS;
     ble_scan_mgr.scan_param.scan_intv       = SCAN_INTERVAL_DEF;
     ble_scan_mgr.scan_param.scan_wd         = SCAN_WINDOW_DEF;
 

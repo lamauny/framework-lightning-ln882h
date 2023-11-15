@@ -326,10 +326,9 @@ static void ln_ble_scan_report_cb(void *arg)
             p_scan_rpt->trans_addr[2], p_scan_rpt->trans_addr[3], p_scan_rpt->trans_addr[4], p_scan_rpt->trans_addr[5]);
     //hexdump(LOG_LVL_INFO, "adv data: ", (void *)p_scan_rpt->data, p_scan_rpt->length);
     uint8_t adv_data[40];
-    memcpy(adv_data, p_scan_rpt->data, p_scan_rpt->length);
-    memcpy(adv_data+p_scan_rpt->length, p_scan_rpt->trans_addr, 6);
+    memcpy(adv_data, p_scan_rpt->trans_addr, 6);
+    memcpy(adv_data+6, p_scan_rpt->data, p_scan_rpt->length);
     zj_adapter_post_event(ADAPT_EVT_BLE_RMT, adv_data, (int *)&(p_scan_rpt->rssi), p_scan_rpt->length + 6);
-
 }
 
 #if (BLE_DATA_TRANS_SERVER)
@@ -471,7 +470,7 @@ uint8_t is_ble_scan_enable(void) {
 
 void __scan_enable(uint8_t type, uint16_t interval, uint16_t wind)
 {
-    LOG(LOG_LVL_INFO, "scan_enable=%d", type);
+    LOG(LOG_LVL_INFO, "scan_enable=%d\r\n", type);
 
     if(type) {
         if(le_scan_state_get() > LE_SCAN_STATE_STARTED || le_scan_state_get() == LE_SCAN_STATE_INITIALIZED) {
@@ -484,14 +483,14 @@ void __scan_enable(uint8_t type, uint16_t interval, uint16_t wind)
 
             ln_ble_scan_start(&le_scan_mgr_info_get()->scan_param);
             is_ble_scan_en = 1;
-            LOG(LOG_LVL_INFO, "scan_enable=>ln_ble_scan_start");
+            LOG(LOG_LVL_INFO, "scan_enable=>ln_ble_scan_start\r\n");
         }
             
     } else {
         if(LE_SCAN_STATE_STARTING == le_scan_state_get() || LE_SCAN_STATE_STARTED == le_scan_state_get()) {
             ln_ble_scan_stop();
             is_ble_scan_en = 0;
-            LOG(LOG_LVL_INFO, "scan_enable=>ln_ble_scan_stop");
+            LOG(LOG_LVL_INFO, "scan_enable=>ln_ble_scan_stop\r\n");
         }
     }
 }
