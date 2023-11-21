@@ -153,7 +153,7 @@ void creat_usr_app_task(void)
     // ble_creat_usr_app_task();
 
 #if  WIFI_TEMP_CALIBRATE
-    if(OS_OK != OS_ThreadCreate(&g_temp_thread, "TempAPP", temp_app_task_entry, NULL, OS_PRIORITY_NORMAL, TEMP_APP_TASK_STACK_SIZE)) {
+    if(OS_OK != OS_ThreadCreate(&g_temp_thread, "TempAPP", temp_app_task_entry, NULL, 1, TEMP_APP_TASK_STACK_SIZE)) {
         LN_ASSERT(1);
     }
 #endif

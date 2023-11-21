@@ -1977,10 +1977,10 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
 #endif
   SYS_ARCH_DECL_PROTECT(lev);
 
-  LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_select(%d, %p, %p, %p, tvsec=%"S32_F" tvusec=%"S32_F")\n",
-                              maxfdp1, (void *)readset, (void *) writeset, (void *) exceptset,
-                              timeout ? (s32_t)timeout->tv_sec : (s32_t) - 1,
-                              timeout ? (s32_t)timeout->tv_usec : (s32_t) - 1));
+  // LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_select(%d, %p, %p, %p, tvsec=%"S32_F" tvusec=%"S32_F")\n",
+  //                             maxfdp1, (void *)readset, (void *) writeset, (void *) exceptset,
+  //                             timeout ? (s32_t)timeout->tv_sec : (s32_t) - 1,
+  //                             timeout ? (s32_t)timeout->tv_usec : (s32_t) - 1));
 
   if ((maxfdp1 < 0) || (maxfdp1 > LWIP_SELECT_MAXNFDS)) {
     set_errno(EINVAL);
@@ -2141,7 +2141,7 @@ lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
 
       if (waitres == SYS_ARCH_TIMEOUT) {
         /* Timeout */
-        LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_select: timeout expired\n"));
+        // LWIP_DEBUGF(SOCKETS_DEBUG, ("lwip_select: timeout expired\n"));
         /* This is OK as the local fdsets are empty and nready is zero,
            or we would have returned earlier. */
       } else {

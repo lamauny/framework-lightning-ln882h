@@ -60,7 +60,7 @@ a lot of data that needs to be copied, this should be set high. */
 /* MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments. */
 #define MEMP_NUM_TCP_SEG        TCP_SND_QUEUELEN
 /* MEMP_NUM_SYS_TIMEOUT: the number of simulateously active timeouts. */
-#define MEMP_NUM_SYS_TIMEOUT    (10)
+#define MEMP_NUM_SYS_TIMEOUT    (16)
 
 #define MEMP_NUM_TCPIP_MSG_INPKT (12)
 #define MEMP_NUM_TCPIP_MSG_API   (8)
@@ -87,9 +87,9 @@ a lot of data that needs to be copied, this should be set high. */
 /* TCP Maximum segment size. */
 #define TCP_MSS                 (NETIF_MTU - 40)  //TCP_MSS = (Ethernet MTU - IP header size - TCP header size)
 /* TCP sender buffer space (bytes). */
-#define TCP_SND_BUF             (7 * TCP_MSS)
+#define TCP_SND_BUF             (3 * TCP_MSS)
 /*  TCP_SND_QUEUELEN: TCP sender buffer space (pbufs). This must be at least as much as (2 * TCP_SND_BUF/TCP_MSS) for things to work. */
-#define TCP_SND_QUEUELEN        (5 * TCP_SND_BUF/TCP_MSS)
+#define TCP_SND_QUEUELEN        (6 * TCP_SND_BUF/TCP_MSS)
 /* TCP receive window. */
 #define TCP_WND                 (3 * TCP_MSS)
 /* Maximum number of retransmissions of data segments. */
@@ -97,8 +97,16 @@ a lot of data that needs to be copied, this should be set high. */
 /* Maximum number of retransmissions of SYN segments. */
 #define TCP_SYNMAXRTX           (4)
 
+#define TCP_WND_UPDATE_THRESHOLD        LWIP_MIN((TCP_WND / 2), (TCP_MSS * 6))
+
+#define LWIP_TCP_CLOSE_TIMEOUT_MS_DEFAULT 5000
+
 /* ---------- ICMP options ---------- */
 #define LWIP_ICMP               1
+
+#define LWIP_MDNS_RESPONDER     1
+#define LWIP_NUM_NETIF_CLIENT_DATA      LWIP_MDNS_RESPONDER
+
 
 /* ---------- IGMP options ---------- */
 #define LWIP_IGMP               1
@@ -148,9 +156,10 @@ a lot of data that needs to be copied, this should be set high. */
 
 /* ----------  DNS options  ----------*/
 #define LWIP_DNS                        1
+#define LWIP_DNS_SECURE                 0
 
 /*---------- DEBUG options ----------*/
-#define LWIP_DEBUG                      LWIP_DBG_OFF
+#define LWIP_DEBUG                      LWIP_DBG_ON
 #define PBUF_DEBUG                      LWIP_DBG_OFF
 
 #if !(LWIP_DEBUG)
@@ -162,7 +171,7 @@ a lot of data that needs to be copied, this should be set high. */
 #define PBUF_DEBUG                  LWIP_DBG_OFF
 #define API_LIB_DEBUG               LWIP_DBG_OFF
 #define API_MSG_DEBUG               LWIP_DBG_OFF
-#define SOCKETS_DEBUG               LWIP_DBG_OFF
+#define SOCKETS_DEBUG               LWIP_DBG_ON
 #define ICMP_DEBUG                  LWIP_DBG_OFF
 #define IGMP_DEBUG                  LWIP_DBG_OFF
 #define INET_DEBUG                  LWIP_DBG_OFF

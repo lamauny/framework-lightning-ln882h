@@ -20,10 +20,10 @@ static uint8_t ln_wdt_is_inited = 0;
 static volatile uint8_t ln_wdt_is_enabled = 0;
 static OS_Thread_t g_adapt_wdt_thr = {.handle = NULL};
 
-// uint32_t esp_timer_get_time(void)
-// {
-//     OS_GetTime();
-// }
+uint32_t zj_ada_get_time(void)
+{
+    return OS_GetTicks();
+}
 
 /**
  * @brief get free heap
@@ -110,6 +110,7 @@ void hal_reboot()
 static void local_adapt_wdt_entry(void *arg)
 {
     LN_UNUSED(arg);
+
     while(1) {
         if (ln_wdt_is_enabled == 0) { /* wdt is not enabled */
             OS_MsDelay(5000); /* The timeout of the wdt needs to be greater than 5s */
@@ -122,7 +123,7 @@ static void local_adapt_wdt_entry(void *arg)
 
 void WDT_IRQHandler()
 {
-
+    // ZJ_LOG("=== wdt irq handler, will reboot ===\r\n");
 }
 
 /**
@@ -145,13 +146,13 @@ void zj_watchdog_start()
         NVIC_SetPriority(WDT_IRQn,     4);
         NVIC_EnableIRQ(WDT_IRQn);
 
-        hal_wdt_en(WDT_BASE,HAL_ENABLE);
-        hal_wdt_cnt_restart(WDT_BASE); /* feed dog */
-        ln_wdt_is_inited = 1;
-        ln_wdt_is_enabled = 1;
+        // hal_wdt_en(WDT_BASE,HAL_ENABLE);
+        // hal_wdt_cnt_restart(WDT_BASE); /* feed dog */
+        // ln_wdt_is_inited = 1;
+        // ln_wdt_is_enabled = 1;
     } else {
-        hal_wdt_en(WDT_BASE, HAL_ENABLE);
-        ln_wdt_is_enabled = 1;
+        // hal_wdt_en(WDT_BASE, HAL_ENABLE);
+        // ln_wdt_is_enabled = 1;
     }
 
     if (g_adapt_wdt_thr.handle == NULL) {

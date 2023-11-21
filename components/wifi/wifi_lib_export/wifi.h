@@ -108,6 +108,7 @@ typedef struct {
     wifi_auth_mode_t             authmode;        /**<  Auth mode of softAP. Do not support AUTH_WEP in softAP mode */
     uint8_t                      ssid_hidden;     /**<  Broadcast SSID or not, default 0, broadcast the SSID */
     uint16_t                     beacon_interval; /**<  Beacon interval, 100 ~ 60000 ms, default 100 ms */
+    uint8_t                      max_conn;
     uint8_t                    * psk_value;
 } wifi_softap_ext_cfg_t;
 

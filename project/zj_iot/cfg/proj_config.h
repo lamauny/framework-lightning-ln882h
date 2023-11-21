@@ -50,7 +50,7 @@
  * flash image settings
  */
 #define FLASH_IMAGE_VER_MAJOR       0
-#define FLASH_IMAGE_VER_MINOR       1
+#define FLASH_IMAGE_VER_MINOR       2
 #define SOC_CRP_FLAG                0
 
 /*

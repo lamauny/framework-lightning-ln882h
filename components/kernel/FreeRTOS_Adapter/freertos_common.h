@@ -15,17 +15,21 @@
 extern "C" {
 #endif
 
+#if (configMAX_PRIORITIES / 2 < 4)
+#error "configMAX_PRIORITIES must more than 8"
+#endif
+
 /**
  * @brief Thread priority definition
  */
 typedef enum  {
     OS_PRIORITY_IDLE            = 0,
-    OS_PRIORITY_LOW             = 1,
-    OS_PRIORITY_BELOW_NORMAL    = 2,
-    OS_PRIORITY_NORMAL          = 3,
-    OS_PRIORITY_ABOVE_NORMAL    = 4,
-    OS_PRIORITY_HIGH            = 5,
-    OS_PRIORITY_REAL_TIME       = 6
+    OS_PRIORITY_LOW             = configMAX_PRIORITIES / 2 - 2 - 2,
+    OS_PRIORITY_BELOW_NORMAL    = configMAX_PRIORITIES / 2 - 2,
+    OS_PRIORITY_NORMAL          = configMAX_PRIORITIES / 2,
+    OS_PRIORITY_ABOVE_NORMAL    = configMAX_PRIORITIES / 2 + 2,
+    OS_PRIORITY_HIGH            = configMAX_PRIORITIES / 2 + 2 + 2,
+    OS_PRIORITY_REAL_TIME       = configMAX_PRIORITIES - 2
 } OS_Priority;
 
 /**

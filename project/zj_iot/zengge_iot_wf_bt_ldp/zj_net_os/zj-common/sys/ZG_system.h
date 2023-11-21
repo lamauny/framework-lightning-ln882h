@@ -25,7 +25,7 @@ extern "C" {
 #include "zj_adapt_config.h"
 #include "zj_adapt_api.h"
 
-#include "WIFI_config.h"
+#include "net/WIFI_config.h"
 #include "ble_transfer.h"
 #include "ble_os_handle.h"
 #include "net_utils.h"
