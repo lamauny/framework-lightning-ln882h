@@ -30,7 +30,39 @@ static OS_Thread_t g_temp_thread;
 #define USR_APP_TASK_STACK_SIZE   6*1024 //Byte
 #define TEMP_APP_TASK_STACK_SIZE  2*1024 //Byte
 
+/* Murphy Used!!! */
 const static char *s_zj_appkey = "{\"uuid\": \"c3884e9c8c10499e975ce22a678b8303\", \"aes\": \"AA1C24E979\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 1 */
+// const static char *s_zj_appkey = "{\"uuid\": \"2108d0a383e740968c5f85ca26c9d5cd\", \"aes\": \"BAD64A735E\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 2 */
+// const static char *s_zj_appkey = "{\"uuid\": \"398648779187408a992fa097a57851eb\", \"aes\": \"4F3E3C269F\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 3 */
+// const static char *s_zj_appkey = "{\"uuid\": \"b9be4acd263647109174581ce927fa7e\", \"aes\": \"78155A6178\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 4 */
+// const static char *s_zj_appkey = "{\"uuid\": \"be96a12a6d1642c9962e7f0dc2b8fd81\", \"aes\": \"F692C36644\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 5 */
+// const static char *s_zj_appkey = "{\"uuid\": \"f331dc81fb5043709e9bddb7f040704f\", \"aes\": \"3CF0245680\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 6 */
+// const static char *s_zj_appkey = "{\"uuid\": \"fb1759a22fc1404cb2313d2f5c7db2f6\", \"aes\": \"5D156841B0\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 7 */
+// const static char *s_zj_appkey = "{\"uuid\": \"43b63287fb7140009a0e0470ba38e4d4\", \"aes\": \"E3BABBC78E\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 8 */
+// const static char *s_zj_appkey = "{\"uuid\": \"bdd8d18d4dcb40759649d970e67c0688\", \"aes\": \"CE76090CDC\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 9 */
+// const static char *s_zj_appkey = "{\"uuid\": \"dc47a39322db483891c50a4ac54c45db\", \"aes\": \"19B4658C41\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
+// /* 10 */
+// const static char *s_zj_appkey = "{\"uuid\": \"641c9497d4bd41a59c4f28b5c66967f4\", \"aes\": \"5176D8498A\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
+
 
 static void temp_app_task_entry(void *params);
 

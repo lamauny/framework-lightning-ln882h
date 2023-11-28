@@ -159,7 +159,7 @@ a lot of data that needs to be copied, this should be set high. */
 #define LWIP_DNS_SECURE                 0
 
 /*---------- DEBUG options ----------*/
-#define LWIP_DEBUG                      LWIP_DBG_ON
+#define LWIP_DEBUG                      LWIP_DBG_OFF
 #define PBUF_DEBUG                      LWIP_DBG_OFF
 
 #if !(LWIP_DEBUG)
@@ -171,7 +171,7 @@ a lot of data that needs to be copied, this should be set high. */
 #define PBUF_DEBUG                  LWIP_DBG_OFF
 #define API_LIB_DEBUG               LWIP_DBG_OFF
 #define API_MSG_DEBUG               LWIP_DBG_OFF
-#define SOCKETS_DEBUG               LWIP_DBG_ON
+#define SOCKETS_DEBUG               LWIP_DBG_OFF
 #define ICMP_DEBUG                  LWIP_DBG_OFF
 #define IGMP_DEBUG                  LWIP_DBG_OFF
 #define INET_DEBUG                  LWIP_DBG_OFF

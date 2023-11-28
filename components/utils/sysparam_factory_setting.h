@@ -19,9 +19,9 @@
 #define STA_MAC_ADDR5             (0x88)
 
 /**<  network(SoftAP) default parameters */
-#define SOFTAP_IP_ADDR            ("192.168.4.1")   /**<  ip addr        */
+#define SOFTAP_IP_ADDR            ("10.10.123.3")   /**<  ip addr        */
 #define SOFTAP_IP_NETMASK         ("255.255.255.0") /**<  subnet mask    */
-#define SOFTAP_IP_GATWAY          ("192.168.4.1")   /**<  gateway        */
+#define SOFTAP_IP_GATWAY          ("10.10.123.3")   /**<  gateway        */
 #define SOFTAP_NETDEV_HOSTNAME    ("LN882H_AP")
 
 /**<  SoftAP default mac addr */
