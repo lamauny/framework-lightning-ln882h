@@ -25,11 +25,13 @@ static OS_Thread_t g_zj_main_thread;
 static OS_Thread_t g_temp_thread;
 
 //#define ZJ_TEST_ONLY
+// #define ZJ_APPKEY_TEST
 #define WIFI_TEMP_CALIBRATE 1
 
 #define USR_APP_TASK_STACK_SIZE   6*1024 //Byte
 #define TEMP_APP_TASK_STACK_SIZE  2*1024 //Byte
 
+#ifdef ZJ_APPKEY_TEST
 /* Murphy Used!!! */
 const static char *s_zj_appkey = "{\"uuid\": \"c3884e9c8c10499e975ce22a678b8303\", \"aes\": \"AA1C24E979\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
 
@@ -62,7 +64,7 @@ const static char *s_zj_appkey = "{\"uuid\": \"c3884e9c8c10499e975ce22a678b8303\
 
 // /* 10 */
 // const static char *s_zj_appkey = "{\"uuid\": \"641c9497d4bd41a59c4f28b5c66967f4\", \"aes\": \"5176D8498A\", \"aesVer\": 3, \"extend\": {\"appKey\": \"ZG002\"}}";
-
+#endif
 
 static void temp_app_task_entry(void *params);
 
@@ -78,8 +80,10 @@ static void zj_main_entry(void *params)
 {
     ln_pm_sleep_mode_set(ACTIVE);
 
+#ifdef ZJ_APPKEY_TEST
     hal_flash_erase(PROT_CONFIG_KEY_FLASH_ADDR, 4096);
     hal_flash_program(PROT_CONFIG_KEY_FLASH_ADDR, strlen(s_zj_appkey), s_zj_appkey);
+#endif
 
     memset(test_buf, 0x0, sizeof(test_buf));
     hal_flash_read(PROT_CONFIG_KEY_FLASH_ADDR, sizeof(test_buf), test_buf);
