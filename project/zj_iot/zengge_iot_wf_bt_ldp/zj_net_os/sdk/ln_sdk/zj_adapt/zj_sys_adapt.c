@@ -146,13 +146,13 @@ void zj_watchdog_start()
         NVIC_SetPriority(WDT_IRQn,     4);
         NVIC_EnableIRQ(WDT_IRQn);
 
-        // hal_wdt_en(WDT_BASE,HAL_ENABLE);
-        // hal_wdt_cnt_restart(WDT_BASE); /* feed dog */
-        // ln_wdt_is_inited = 1;
-        // ln_wdt_is_enabled = 1;
+        hal_wdt_en(WDT_BASE,HAL_ENABLE);
+        hal_wdt_cnt_restart(WDT_BASE); /* feed dog */
+        ln_wdt_is_inited = 1;
+        ln_wdt_is_enabled = 1;
     } else {
-        // hal_wdt_en(WDT_BASE, HAL_ENABLE);
-        // ln_wdt_is_enabled = 1;
+        hal_wdt_en(WDT_BASE, HAL_ENABLE);
+        ln_wdt_is_enabled = 1;
     }
 
     if (g_adapt_wdt_thr.handle == NULL) {
@@ -173,7 +173,7 @@ int zj_watchdog_stop(uint32_t time)
     }
 
     hal_wdt_en(WDT_BASE, HAL_DISABLE);
-    // hal_wdt_deinit();
+    hal_wdt_deinit();
     ln_wdt_is_enabled = 0;
 
     return 0;
