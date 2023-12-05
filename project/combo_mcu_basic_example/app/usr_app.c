@@ -26,7 +26,11 @@
 #include "usr_app.h"
 #include "usr_ble_app.h"
 
-
+#include "lwip/dns.h"
+#include "lwip/tcpip.h"
+#include "lwip/ip.h"
+#include "lwip/api.h"
+#include "lwip/sockets.h"
 
 static OS_Thread_t g_usr_app_thread;
 #define USR_APP_TASK_STACK_SIZE   6*256 //Byte
@@ -49,8 +53,8 @@ static uint8_t psk_value[40]      = {0x0};
 // static uint8_t target_ap_bssid[6] = {0xC0, 0xA5, 0xDD, 0x84, 0x6F, 0xA8};
 
 wifi_sta_connect_t connect = {
-    .ssid    = "TL_WR741N_7F84",
-    .pwd     = "12345678901234567890123456",
+    .ssid    = "LN_LAB_TEST",
+    .pwd     = "12345678",
     .bssid   = NULL,
     .psk_value = NULL,
 };
@@ -93,9 +97,9 @@ static void wifi_scan_complete_cb(void * arg)
         uint8_t * mac = (uint8_t*)pnode->info.bssid;
         ap_info_t *ap_info = &pnode->info;
 
-        LOG(LOG_LVL_INFO, "\tCH=%2d,RSSI= %3d,", ap_info->channel, ap_info->rssi);
-        LOG(LOG_LVL_INFO, "BSSID:[%02X:%02X:%02X:%02X:%02X:%02X],SSID:\"%s\"\r\n", \
-                           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], ap_info->ssid);
+//        LOG(LOG_LVL_INFO, "\tCH=%2d,RSSI= %3d,", ap_info->channel, ap_info->rssi);
+//        LOG(LOG_LVL_INFO, "BSSID:[%02X:%02X:%02X:%02X:%02X:%02X],SSID:\"%s\"\r\n", \
+//                           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], ap_info->ssid);
     }
 
     wifi_manager_ap_list_update_enable(LN_TRUE);
@@ -191,7 +195,152 @@ static void wifi_init_ap(void)
     }
 }
 
+static OS_Semaphore_t wait_dns_sem;
+static ip_addr_t      my_http_ip;
 
+static void dns_found(const char *name, ip_addr_t *host_ip, void *callback_arg)
+{
+    OS_SemaphoreRelease(&wait_dns_sem);
+    my_http_ip.addr = host_ip->addr;
+}
+
+/**
+ * @brief get ip address by lwip dns
+ * 
+ * @param hostname host name
+ * @param ip host ip address
+ * @param cb dns found call back function
+ * @return int return execution result
+ */
+static int ln_drv_get_ip_by_dns(char *hostname,ip_addr_t *ip,dns_found_callback cb)
+{
+    OS_Status ret_sta = OS_SemaphoreCreateBinary(&wait_dns_sem);
+    if (ret_sta != OS_OK) {
+        LOG(LOG_LVL_ERROR, "Wait DNS sem creat fail\r\n");
+        return HAL_ERROR;
+    }
+    err_t ret = dns_gethostbyname(hostname, ip, cb,NULL);;
+    if (ret == ERR_INPROGRESS){
+      
+    }else if (ret == ERR_OK){
+     
+        OS_SemaphoreRelease(&wait_dns_sem);
+    }else if(ret == ERR_OK){
+        LOG(LOG_LVL_ERROR, "Get dns result err.Error code:%d\n",ret);
+        return HAL_ERROR;
+    }
+    OS_SemaphoreWait(&wait_dns_sem, 30000);
+    if(OS_SemaphoreGetCount(&wait_dns_sem) == 0){
+        ip->addr = my_http_ip.addr;
+        return HAL_OK;
+    }else{
+        LOG(LOG_LVL_ERROR, "Get dns result timeout.\n");
+        return HAL_ERROR;
+    }
+}
+
+/**
+ * @brief http get request
+ * 
+ * @param host_name host name
+ * @param url url,resource path
+ * @param ret_str the http get return
+ * @param ret_str_len the content returned by HTTP GET
+ * @param ret_str_max_len the content length returned by HTTP GET
+ * @return int return execution result
+ */
+int ln_drv_http_get(uint8_t *host_name,uint8_t *url,uint8_t *ret_str,uint32_t *ret_str_len,uint32_t ret_str_max_len)
+{
+    //get host ip by dns
+    ip_addr_t host_ip;
+    host_ip.addr = 0;
+    if(ln_drv_get_ip_by_dns((char*)host_name,&host_ip,(dns_found_callback)dns_found) != HAL_OK){
+        LOG(LOG_LVL_ERROR, "Get HOST IP failed.\n");
+        return HAL_ERROR;
+    }else{
+        LOG(LOG_LVL_INFO, "HOST IP:%s.\n",ip4addr_ntoa(&(host_ip.addr)));
+    }
+
+    //tcp connect by lwip socket
+    int     ret  = 0;
+    struct  sockaddr_in  client_addr;
+    int     sock = socket(AF_INET,SOCK_STREAM,0);
+    if(sock < 0){
+        LOG(LOG_LVL_ERROR, "Socket init failed\n");
+        return HAL_ERROR;
+    }
+    memset(&client_addr,0,sizeof(client_addr));
+    client_addr.sin_family = AF_INET;
+    client_addr.sin_port = htons(80);
+    client_addr.sin_addr.s_addr = host_ip.addr;
+    memset(&(client_addr.sin_zero), 0, sizeof(client_addr.sin_zero));
+    
+    for(int i = 0; i < 10; i ++){
+        ret = connect(sock,(struct sockaddr *)&client_addr,sizeof(struct sockaddr));
+        if(ret != -1)
+            break;
+        OS_MsDelay(50);
+    }
+    
+    if(ret == -1){
+        LOG(LOG_LVL_ERROR, "TCP Connect failed!\n");
+        closesocket(sock);
+        OS_MsDelay(10);
+        return HAL_ERROR;
+    }else{
+        ret = write(sock,url,strlen((char*)url));
+        if(ret != strlen((char*)url)){
+            LOG(LOG_LVL_ERROR, "TCP write data failed!\n");
+            closesocket(sock);
+            return HAL_ERROR;
+        }
+        ret = recv(sock, ret_str,ret_str_max_len,0);
+        closesocket(sock);
+        if(ret <= 0){
+            LOG(LOG_LVL_ERROR, "TCP read data failed!\n");
+            closesocket(sock);
+            return HAL_ERROR;
+        }else{
+            *ret_str_len = ret;
+        }
+    }
+    closesocket(sock);
+    return HAL_OK;
+}
+static OS_Thread_t g_get_net_data_thread;
+static uint8_t my_weather_code = 0;
+static int8_t  my_weather_tem  = 0;
+static uint8_t my_position_str[50] = {0};
+static uint8_t cur_status      = 0;
+static void get_net_data_task_entry(void *params);
+
+static int find_information(uint8_t *data,uint8_t *weather_code,int8_t *weather_tem,uint8_t *position_str)
+{
+    char    *token = NULL; 
+    char    *endptr = NULL; 
+	char 	delimiters[] = ",";  	
+    token = strtok((char*)data,delimiters);
+    while(token != NULL){
+        token = strtok(NULL,delimiters);
+        if(memcmp("name",token+1,strlen("name")) == 0){
+            strcpy((char*)position_str,token+8);
+						position_str[strlen(position_str)-1] = 0x0;//delete '"'
+        }
+        if(memcmp("code",token+1,strlen("code")) == 0){
+            my_weather_code = strtol(token+8,&endptr,0);
+        }
+        if(memcmp("temperature",token+1,strlen("temperature")) == 0){
+            my_weather_tem = strtol(token+15,&endptr,0);
+            return HAL_OK;
+        }
+    }
+    return HAL_ERROR;
+}
+//http://api.seniverse.com/v3/weather/now.json?key=S9Sg1Ymshl8NeI68d&location=ip&language=zh-Hans&unit=c
+#define WEATHER_HOST_NAME   "api.seniverse.com"
+#define WEATHER_URL         "GET /v3/weather/now.json?key=S9Sg1Ymshl8NeI68d&location=ip&language=zh-Hans&unit=c\r\n\r\n"
+#define WEATHER_HOST_IP     "116.62.81.138"
+#define GET_NET_DATA_LEN    2048
 static void usr_app_task_entry(void *params)
 {
     LN_UNUSED(params);
@@ -202,14 +351,39 @@ static void usr_app_task_entry(void *params)
 
     wifi_init_sta();
     // wifi_init_ap();
-
+    
 
     while (!netdev_got_ip()) {
         OS_MsDelay(1000);
     }
+    uint32_t data_len = 0;
+    uint8_t *ret_data = NULL;
+    while (1)
+    {
+        data_len = 0;
+        ret_data = OS_Malloc(GET_NET_DATA_LEN);
+        memset(ret_data,0,GET_NET_DATA_LEN);
+        if(HAL_OK == ln_drv_http_get((uint8_t*)&WEATHER_HOST_NAME,(uint8_t*)&WEATHER_URL,(uint8_t*)ret_data,&data_len,GET_NET_DATA_LEN)){
+            LOG(LOG_LVL_INFO,"HTTP GET RET:%s",(uint8_t *)ret_data);
+            if(HAL_OK == find_information(ret_data,&my_weather_code,&my_weather_tem,my_position_str)){
+                cur_status = 1;
+                OS_Free(ret_data);
+				LOG(LOG_LVL_INFO,"GET WEATHER OK");
+                ln_pm_sleep_frozen(20000,1,0,0,1);
+            }
+        }else{
+            LOG(LOG_LVL_INFO,"Get weather information failed.");
+        }
+        OS_Free(ret_data);
+
+//        //OS_MsDelay(1000 * 60 * 60);
+        OS_MsDelay(2000);
+        //ln_pm_sleep_frozen(5000,1,0,0,0);
+    }
     while(1)
     {
         OS_MsDelay(1000);
+        
     }
 }
 

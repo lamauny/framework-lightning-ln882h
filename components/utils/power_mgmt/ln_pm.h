@@ -59,7 +59,7 @@ int           ln_pm_obj_register(const char * name, int(*veto)(void), int(*pre_p
 void          ln_pm_rtos_pre_sleep_proc(uint32_t *expect_ms);
 int           ln_pm_rtos_post_sleep_proc(uint32_t *expect_ms);
 
-void          ln_pm_sleep_frozen(void);
+void          ln_pm_sleep_frozen(uint32_t wp_time,uint8_t wp_time_en,uint8_t wp_pin,uint8_t pin_mode,uint8_t wp_pin_en);
 
 #ifdef __cplusplus
 }

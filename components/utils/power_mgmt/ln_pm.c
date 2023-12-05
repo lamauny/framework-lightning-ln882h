@@ -34,6 +34,9 @@ static pm_ctl_t sg_pm_ctrl = {0,};
 #include "reg_sysc_awo.h"
 #include "reg_sysc_cmp.h"
 
+#include "hal/hal_rtc.h"
+#include "hal/hal_ext.h"
+#include "hal/hal_misc.h"
 __STATIC_INLINE void soc_sleep_timer_config(uint64_t time)
 {
     sysc_awo_o_cpu_sleep_time_l_setf((uint32_t)time);
@@ -54,6 +57,60 @@ __STATIC_INLINE void soc_io_pmu_ret_config(uint8_t ret, uint8_t unret)
     sysc_awo_r_pmu_ret_en_setf(ret);      // gpio retention
     sysc_awo_r_pmu_unret_en_setf(unret);  // gpio unretention
 }
+
+__STATIC_INLINE void soc_rtc_config(uint32_t time_ms)
+{
+    rtc_init_t_def rtc_init;
+    rtc_init.rtc_warp_en = RTC_WRAP_EN;                       
+    hal_rtc_init(RTC_BASE,&rtc_init);
+    hal_rtc_set_cnt_match(RTC_BASE,time_ms * 1000000.0f / hal_misc_awo_get_i_rco32k_period_ns());                         
+    hal_rtc_set_cnt_load(RTC_BASE,0);                           
+    hal_rtc_it_cfg(RTC_BASE,RTC_IT_FLAG_ACTIVE,HAL_ENABLE);
+    NVIC_SetPriority(RTC_IRQn,0);
+    NVIC_EnableIRQ(RTC_IRQn);
+    hal_rtc_en(RTC_BASE,HAL_ENABLE); 
+    for(int i = 0; i < 1000; i++);
+}
+
+/*
+    EXT_INT_SENSE_0 = 0,    //PA0
+    EXT_INT_SENSE_1 = 1,    //PA1
+    EXT_INT_SENSE_2 = 2,    //PA2
+    EXT_INT_SENSE_3 = 3,    //PA3
+    EXT_INT_SENSE_4 = 4,    //PA5
+    EXT_INT_SENSE_5 = 5,    //PA6
+    EXT_INT_SENSE_6 = 6,    //PA7
+    EXT_INT_SENSE_7 = 7,    //PB9
+*/
+
+/**
+ * @brief 
+ * 
+ * @param ext_pin  0 - 7
+ * @param pin_mode 0:positive edge,1:negetive edge
+ * @return __STATIC_INLINE 
+ */
+__STATIC_INLINE void soc_ext_config(uint8_t ext_pin,uint8_t pin_mode)
+{
+    hal_ext_init(ext_pin,pin_mode+2,HAL_ENABLE);  
+    NVIC_SetPriority(EXT_IRQn,0);                           
+    NVIC_EnableIRQ(EXT_IRQn);  
+}
+
+__STATIC_INLINE void soc_frozen_config()
+{
+    //sysc_awo_lp_mode_awo_setf(1);
+    //sysc_awo_en_bod_setf(0);
+    //sysc_awo_o_cpu_lockup_rst_mask_setf(0);
+    //*((uint32_t*)(0x40100030)) |= 0xF000;
+    //*((uint32_t*)(0x40100034)) |= 0x07F0;
+
+//    *((uint32_t*)(0x4000C000)) = 0x0000;
+//    *((uint32_t*)(0x4000C004)) = 0x0000;
+//    *((uint32_t*)(0x4000C400)) = 0x0000;
+//    *((uint32_t*)(0x4000C404)) = 0x0000;
+}
+
 
 __STATIC_INLINE void soc_cortex_m4_select_deepsleep(void)
 {
@@ -184,10 +241,11 @@ __STATIC_INLINE void pmu_pre_sleep_update(pm_ctl_t * ctrl)
             break;
 
         case FROZEN_SLEEP:
-            SOC_AWO_PMU_CFG_SET(0, 0, 7, 7, 4, 4, 7, 7, 1, 1, 1, 1); /* 0x717744FC */
+            SOC_AWO_PMU_CFG_SET(0, 0, 7, 7, 7, 7, 7, 7, 1, 1, 1, 1); /* 0x717744FC */
             soc_io_pmu_ret_config(1, 1);                             /* pd cmp, need retention/unret */
             soc_rom_phase_reset_flag();                              /* ROM boot phase reset all digital module */
             soc_cortex_m4_select_deepsleep();                        /* trigger sleep at last */
+            soc_frozen_config();
             break;
         
         default:
@@ -433,9 +491,46 @@ int ln_pm_obj_register(const char *name, int(*veto)(void), int(*pre_proc)(void),
 
     return ret;
 }
-
-void ln_pm_sleep_frozen(void)
+#include "utils/debug/log.h"
+void ln_pm_sleep_frozen(uint32_t wp_time,uint8_t wp_time_en,uint8_t wp_pin,uint8_t pin_mode,uint8_t wp_pin_en)
 {
+    LOG(LOG_LVL_ERROR, "\r\nPMU config start:%d.\r\n",wp_time);
+    __disable_irq();
+    NVIC_DisableIRQ(EXT_IRQn);
+    NVIC_DisableIRQ(RTC_IRQn);
+    NVIC_DisableIRQ(RFSLP_IRQn);
+    NVIC_DisableIRQ(MAC_IRQn);
+    NVIC_DisableIRQ(PendSV_IRQn);
+    NVIC_DisableIRQ(SysTick_IRQn);
+    NVIC_ClearPendingIRQ(EXT_IRQn);
+    NVIC_ClearPendingIRQ(RTC_IRQn);
+    NVIC_ClearPendingIRQ(RFSLP_IRQn);
+    NVIC_ClearPendingIRQ(MAC_IRQn);
+    NVIC_ClearPendingIRQ(PendSV_IRQn);
+    NVIC_ClearPendingIRQ(SysTick_IRQn);
+    if(wp_time_en == 1){
+        soc_rtc_config(wp_time);
+    }
+
+    if(wp_pin_en == 1){
+        soc_ext_config(wp_pin,pin_mode);
+    }
     ln_pm_sleep_mode_set(FROZEN_SLEEP);
     pmu_pre_sleep_update(&sg_pm_ctrl);
+
+    
+        for(int i = 0; i < 1000; i ++);
+        __asm volatile( "dsb" );
+        __asm volatile( "wfi" );
+        __asm volatile( "isb" );
+        LOG(LOG_LVL_ERROR, "PMU PSM:%d.\r\n",sysc_awo_pmu_fsm_getf());
+        while(1);
+    
 }
+
+
+
+
+
+
+
