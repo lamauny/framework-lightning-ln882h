@@ -99,16 +99,17 @@ __STATIC_INLINE void soc_ext_config(uint8_t ext_pin,uint8_t pin_mode)
 
 __STATIC_INLINE void soc_frozen_config()
 {
-    //sysc_awo_lp_mode_awo_setf(1);
-    //sysc_awo_en_bod_setf(0);
-    //sysc_awo_o_cpu_lockup_rst_mask_setf(0);
-    //*((uint32_t*)(0x40100030)) |= 0xF000;
-    //*((uint32_t*)(0x40100034)) |= 0x07F0;
+    sysc_awo_lp_mode_awo_setf(1);
+    sysc_awo_en_bod_setf(0);
+    sysc_awo_o_cpu_lockup_rst_mask_setf(0);
+    
+    *((uint32_t*)(0x40100030)) |= 0xF000;
+    *((uint32_t*)(0x40100034)) |= 0x07F0;
 
-//    *((uint32_t*)(0x4000C000)) = 0x0000;
-//    *((uint32_t*)(0x4000C004)) = 0x0000;
-//    *((uint32_t*)(0x4000C400)) = 0x0000;
-//    *((uint32_t*)(0x4000C404)) = 0x0000;
+    *((uint32_t*)(0x4000C000)) = 0x0000;
+    *((uint32_t*)(0x4000C004)) = 0x0000;
+    *((uint32_t*)(0x4000C400)) = 0x0000;
+    *((uint32_t*)(0x4000C404)) = 0x0000;
 }
 
 
@@ -491,23 +492,27 @@ int ln_pm_obj_register(const char *name, int(*veto)(void), int(*pre_proc)(void),
 
     return ret;
 }
-#include "utils/debug/log.h"
 void ln_pm_sleep_frozen(uint32_t wp_time,uint8_t wp_time_en,uint8_t wp_pin,uint8_t pin_mode,uint8_t wp_pin_en)
 {
-    LOG(LOG_LVL_ERROR, "\r\nPMU config start:%d.\r\n",wp_time);
-    __disable_irq();
-    NVIC_DisableIRQ(EXT_IRQn);
-    NVIC_DisableIRQ(RTC_IRQn);
-    NVIC_DisableIRQ(RFSLP_IRQn);
-    NVIC_DisableIRQ(MAC_IRQn);
-    NVIC_DisableIRQ(PendSV_IRQn);
-    NVIC_DisableIRQ(SysTick_IRQn);
-    NVIC_ClearPendingIRQ(EXT_IRQn);
-    NVIC_ClearPendingIRQ(RTC_IRQn);
-    NVIC_ClearPendingIRQ(RFSLP_IRQn);
-    NVIC_ClearPendingIRQ(MAC_IRQn);
-    NVIC_ClearPendingIRQ(PendSV_IRQn);
-    NVIC_ClearPendingIRQ(SysTick_IRQn);
+    __disable_fiq();
+    
+    //close the systick and mac.
+    SysTick->CTRL &= 0x2;
+    hal_misc_cmp_set_srstn_mac(0);
+    
+    //clear interrupt en and pending.
+    for(int i = 0; i < PAOTD_IRQn + 1; i ++){
+        NVIC_DisableIRQ(i);
+        NVIC_ClearPendingIRQ(i);
+    }
+    
+    uint32_t scb_icsr_val = SCB->ICSR;
+    scb_icsr_val &= ~SCB_ICSR_PENDSVSET_Msk;
+    scb_icsr_val &= ~SCB_ICSR_PENDSTSET_Msk;
+    scb_icsr_val |= SCB_ICSR_PENDSVCLR_Msk;
+    scb_icsr_val |= SCB_ICSR_PENDSTCLR_Msk;
+    SCB->ICSR = scb_icsr_val;
+    
     if(wp_time_en == 1){
         soc_rtc_config(wp_time);
     }
@@ -515,17 +520,17 @@ void ln_pm_sleep_frozen(uint32_t wp_time,uint8_t wp_time_en,uint8_t wp_pin,uint8
     if(wp_pin_en == 1){
         soc_ext_config(wp_pin,pin_mode);
     }
+    
     ln_pm_sleep_mode_set(FROZEN_SLEEP);
     pmu_pre_sleep_update(&sg_pm_ctrl);
-
     
-        for(int i = 0; i < 1000; i ++);
-        __asm volatile( "dsb" );
-        __asm volatile( "wfi" );
-        __asm volatile( "isb" );
-        LOG(LOG_LVL_ERROR, "PMU PSM:%d.\r\n",sysc_awo_pmu_fsm_getf());
-        while(1);
-    
+    __enable_fiq();
+       
+    __asm volatile( "dsb" );
+    __asm volatile( "wfi" );
+    __asm volatile( "isb" );
+      
+    while(1);
 }
 
 
