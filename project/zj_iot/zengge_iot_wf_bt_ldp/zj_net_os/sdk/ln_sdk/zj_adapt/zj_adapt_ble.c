@@ -38,16 +38,14 @@ enum trans_svc_att_idx
     DATA_TRANS_IDX_MAX,
 };
 
-enum {
-    DEVICE_ADV,
-    BTR_FORWARD_ADV,
-};
+#define DEVICE_ADV        0x00
+#define BTR_FORWARD_ADV   0x01
 
-// enum {
-//     BLE_STATE_UNINITIALIZED = 0,
-//     BLE_STATE_DISABLE,
-//     BLE_STATE_ENABLE,
-// };
+enum {
+     BLE_STATE_UNINITIALIZED = 0,
+     BLE_STATE_DISABLE,
+     BLE_STATE_ENABLE,
+};
 #define CHAR_VAL_MAX_LEN    1024
 
 #define ADV_SCAN_UNIT(_ms) ((_ms) * 8 / 5)
@@ -63,16 +61,6 @@ enum {
 struct user_svc_desc {
     ln_trans_svr_desc_t desc;
     uint8_t ccc;//character client config
-};
-#endif
-
-#if (BLE_DATA_TRANS_CLIENT)
-struct user_cli_desc {
-    uint8_t con_idx;
-    uint16_t start_handle;
-    uint16_t end_handle;
-    uint8_t svc_uuid_len;
-    uint8_t svc_uuid[16];
 };
 #endif
 
@@ -95,9 +83,10 @@ typedef struct
 #define DATA_TRANS_2ND_TX_UUID      {0x22, 0xff}
 
 uint16_t g_zj_mtu = 0;
-static int g_ble_init_flag = -1;// BLE_STATE_UNINITIALIZED;
+static int g_ble_init_flag = BLE_STATE_UNINITIALIZED;
 static OS_Thread_t g_zj_ble_app_thread;
 static uint8_t g_btr_forward_p[26];
+static bool g_btr_adv_update_flag,g_cross_switch_flag;
 
 #if (BLE_DATA_TRANS_SERVER)
 static const ln_attm_desc_t data_trans_1st_atts_db[] = {
@@ -202,25 +191,7 @@ static struct user_svc_desc g_user_svc_desc_tab[DATA_TRANS_SVR_MAX] = {
 };
 #endif
 
-#if (BLE_DATA_TRANS_CLIENT)
-struct user_cli_desc g_user_cli_desc_tab[DATA_TRANS_SVR_MAX] = {
-    {
-        .con_idx        = APP_CONN_INVALID_IDX,
-        .start_handle   = LN_ATT_INVALID_HANDLE,
-        .end_handle     = LN_ATT_INVALID_HANDLE,
-        .svc_uuid_len   = 16,
-        .svc_uuid       = DATA_TRANS_1ST_SVR_UUID,
-    },
-    {
-        .con_idx        = APP_CONN_INVALID_IDX,
-        .start_handle   = LN_ATT_INVALID_HANDLE,
-        .end_handle     = LN_ATT_INVALID_HANDLE,
-        .svc_uuid_len   = 2,
-        .svc_uuid       = DATA_TRANS_2ND_SVR_UUID,
-    },
-};
-#endif
-
+#if 0
 static void app_set_adv_data(void)
 {
     //adv data: adv length--adv type--adv string ASCII
@@ -273,13 +244,80 @@ static void app_set_scan_resp_data(void)
 
     hexdump(LOG_LVL_INFO, (const char *)"legacy_scan_rsp", adv_data, adv_data_len);
 }
+#endif
+
+static void ln_ble_set_dev_adv_data(void)
+{
+    //adv data: adv length--adv type--adv string ASCII
+    uint8_t adv_data_len = 0;
+    uint8_t adv_data[31] = {0};
+    ln_adv_data_t adv_data_param;
+    uint8_t *cus_adv_data = zj_adapter_get_adv_data_config();
+    uint8_t *cus_adv_rsp_data = zj_adapter_get_adv_scanResp_config();
+
+    /* set adv data */
+#if (BLE_NET_VERSION == 5)
+    adv_data[adv_data_len++] = 21;
+    adv_data[adv_data_len++] = GAP_AD_TYPE_COMPLETE_NAME;
+    memcpy(adv_data+2, cus_adv_data+5, 20);
+    adv_data_len += 20;
+#else
+    adv_data[adv_data_len++] = 17;
+    adv_data[adv_data_len++] = GAP_AD_TYPE_SERVICE_16_BIT_DATA;
+    memcpy(adv_data+adv_data_len, cus_adv_data+5, 16);
+    adv_data_len += 16;
+    adv_data[adv_data_len++] = 9;
+    adv_data[adv_data_len++] = GAP_AD_TYPE_COMPLETE_NAME;
+    memcpy(adv_data+adv_data_len, cus_adv_data+23, 8);
+    adv_data_len += 8;
+#endif
+    adv_data_param.length = adv_data_len;
+    adv_data_param.data = adv_data;
+    ln_ble_adv_data_set(&adv_data_param);
+
+    /* set adv response data */
+    memset(adv_data, 0, sizeof(adv_data));
+    adv_data_len = 0;
+    adv_data[adv_data_len++] = 30;
+    adv_data[adv_data_len++] = 0xff;
+    memcpy(adv_data+adv_data_len, cus_adv_rsp_data+2, 29);
+    adv_data_len += 29;
+
+    adv_data_param.length = adv_data_len;
+    adv_data_param.data = adv_data;
+    ln_ble_adv_scan_rsp_data_set(&adv_data_param);
+
+    g_cross_switch_flag = DEVICE_ADV;
+}
+
+static void ln_ble_set_forward_adv_data(void)
+{
+    //adv data: adv length--adv type--adv string ASCII
+    uint8_t adv_data_len = 0;
+    uint8_t adv_data[31] = {0};
+    ln_adv_data_t adv_data_param;
+
+    adv_data[adv_data_len++] = 0x1b;
+    adv_data[adv_data_len++] = 0x03;
+    memcpy(adv_data+adv_data_len, g_btr_forward_p, sizeof(g_btr_forward_p));
+    adv_data_len += sizeof(g_btr_forward_p);
+    adv_data_param.length = adv_data_len;
+    adv_data_param.data = adv_data;
+    ln_ble_adv_data_set(&adv_data_param);
+
+    memset(adv_data, 0, sizeof(adv_data));
+    adv_data_len = 0;
+    adv_data_param.length = 0;
+    adv_data_param.data = adv_data;
+    ln_ble_adv_scan_rsp_data_set(&adv_data_param);
+}
 
 static void ln_ble_connect_cb(void *arg)
 {
     ble_evt_connected_t * evt_conn = (ble_evt_connected_t *)arg;
 
     uint8_t conn_idx = evt_conn->conn_idx;
-    LOG(LOG_LVL_TRACE, "ln_ble_connect conn_id=%d\r\n", conn_idx);
+    LOG(LOG_LVL_INFO, "ln_ble_connect conn_id=%d\r\n", conn_idx);
 
     zj_adapter_post_event(ADAPT_EVT_BLE_CONNECTED,NULL,NULL,0);
 }
@@ -288,29 +326,19 @@ static void ln_ble_disconnect_cb(void *arg)
 {
     ble_evt_disconnected_t *evt_disconn = (ble_evt_disconnected_t *)arg;
     uint8_t ble_role = ln_kv_ble_usr_data_get()->ble_role;
-    LOG(LOG_LVL_TRACE, "ln_ble_disconnect conn_id=%d\r\n", evt_disconn->conn_idx);
+    LOG(LOG_LVL_INFO, "ln_ble_disconnect conn_id=%d\r\n", evt_disconn->conn_idx);
 
     zj_adapter_post_event(ADAPT_EVT_BLE_DISCONNECTED,NULL,NULL,0);
 
     if((ble_role & BLE_ROLE_PERIPHERAL)) {
         //ln_ble_adv_start();
-        if (1 == g_ble_init_flag) {
-            ln_ble_adv_start();
+        if (BLE_STATE_ENABLE == g_ble_init_flag) {
+            g_cross_switch_flag = DEVICE_ADV;
         }
 
 #if (BLE_DATA_TRANS_SERVER)
         for(int i=0;i<DATA_TRANS_SVR_MAX;i++)
             g_user_svc_desc_tab[i].ccc = 0;
-#endif
-    }
-
-    if((ble_role & BLE_ROLE_CENTRAL)) {
-#if (BLE_DATA_TRANS_CLIENT)
-        for(int i=0;i<DATA_TRANS_SVR_MAX;i++) {
-            g_user_cli_desc_tab[i].con_idx        = APP_CONN_INVALID_IDX;
-            g_user_cli_desc_tab[i].start_handle   = LN_ATT_INVALID_HANDLE;
-            g_user_cli_desc_tab[i].end_handle     = LN_ATT_INVALID_HANDLE;
-        }
 #endif
     }
 }
@@ -336,7 +364,7 @@ static void ln_ble_gatt_write_req_cb(void *arg)
 {
     ble_evt_gatt_write_req_t *p_gatt_write = (ble_evt_gatt_write_req_t *)arg;
     LOG(LOG_LVL_TRACE, "ln_ble_gatt_write conn_id=%d,handle=%d\r\n",p_gatt_write->conidx,p_gatt_write->handle);
-    hexdump(LOG_LVL_INFO, "[recv data]", (void *)p_gatt_write->value, p_gatt_write->length);
+    // hexdump(LOG_LVL_TRACE, "[recv data]", (void *)p_gatt_write->value, p_gatt_write->length);
 
     if(p_gatt_write->handle == g_user_svc_desc_tab[0].desc.start_handle +DATA_TRANS_DECL_CHAR_TX_CCC)
         g_user_svc_desc_tab[0].ccc = *((uint16_t *)p_gatt_write->value);
@@ -388,9 +416,6 @@ static void ln_ble_stack_init(void)
 #if (BLE_DATA_TRANS_SERVER)
     ln_ble_trans_svr_init();
 #endif
-#if (BLE_DATA_TRANS_CLIENT)
-    ln_ble_trans_cli_init();
-#endif
 
     ln_rw_app_task_init();
 
@@ -407,7 +432,7 @@ static void ln_ble_stack_init(void)
 static void ln_ble_app_init(void)
 {
     uint8_t role = ln_kv_ble_usr_data_get()->ble_role;
-    LOG(LOG_LVL_TRACE, "ble_app_init role=%d\r\n", role);
+    LOG(LOG_LVL_INFO, "ble_app_init role=%d\r\n", role);
 
     ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_CONNECTED,    ln_ble_connect_cb);
     ln_ble_evt_mgr_reg_evt(BLE_EVT_ID_DISCONNECTED, ln_ble_disconnect_cb);
@@ -426,9 +451,10 @@ static void ln_ble_app_init(void)
         adv_param->adv_prop = GAPM_ADV_PROP_UNDIR_CONN_MASK;
         ln_ble_adv_actv_creat(adv_param);
         /*set advertising data*/
-        app_set_adv_data();
+        //app_set_adv_data();
         /*set scan respond data*/
-        app_set_scan_resp_data();
+        //app_set_scan_resp_data();
+        ln_ble_set_dev_adv_data();
 
         /*start advertising*/
         //ln_ble_adv_start();
@@ -454,13 +480,15 @@ void bleprph_host_task(void *param)
 
 void zj_ble_scan_stop()
 {
-    // if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
-    //     return ;
+    if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
+        return ;
 
     if(LE_SCAN_STATE_STARTING == le_scan_state_get() 
             || LE_SCAN_STATE_STARTED == le_scan_state_get()) {
         ln_ble_scan_stop();
-    }
+
+        LOG(LOG_LVL_INFO, "[%s, %d]ln_ble_scan_stop\r\n", __func__, __LINE__);
+     }
 }
 
 static uint8_t is_ble_scan_en = 0;
@@ -478,7 +506,7 @@ void __scan_enable(uint8_t type, uint16_t interval, uint16_t wind)
             le_scan_mgr_info_get()->scan_param.scan_intv    = interval;//123;//123;//64; //  //N *0.625 = xxx ms
             le_scan_mgr_info_get()->scan_param.scan_wd      = wind;//53;//50;//53; //32; //  //N *0.625 = xxx ms
             le_scan_mgr_info_get()->scan_param.dup_filt_pol = GAPM_DUP_FILT_DIS;//GAPM_DUP_FILT_EN;//GAPM_DUP_FILT_DIS;
-		    le_scan_mgr_info_get()->scan_param.prop         = GAPM_SCAN_PROP_PHY_1M_BIT;
+            le_scan_mgr_info_get()->scan_param.prop         = GAPM_SCAN_PROP_PHY_1M_BIT;
             le_scan_mgr_info_get()->scan_param.type         = GAPM_SCAN_TYPE_OBSERVER;
 
             ln_ble_scan_start(&le_scan_mgr_info_get()->scan_param);
@@ -497,18 +525,23 @@ void __scan_enable(uint8_t type, uint16_t interval, uint16_t wind)
 
 void zj_ble_scan_start()
 {
-//     if(BLE_STATE_ENABLE != g_ble_init_flag)
-        // return ;
+     if(BLE_STATE_ENABLE != g_ble_init_flag)
+         return ;
     __scan_enable(1, 96, 48);
 }
 
 void zj_btr_adv_payload_update(uint8_t *p)
 {
-
+    memcpy(g_btr_forward_p, p, 26);
+    g_btr_adv_update_flag = 1;
 }
 
 void zj_ble_adv_update()
 {
+#if 0
+    if (ln_ble_is_connected()) {
+        return;
+    }
     // if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
         OS_MsDelay(600);
 
@@ -517,6 +550,10 @@ void zj_ble_adv_update()
         OS_MsDelay(600);
         ln_ble_adv_start();
     }
+#else
+    LOG(LOG_LVL_INFO, "zj_ble_adv_update\r\n");
+    g_cross_switch_flag = DEVICE_ADV;
+#endif
 }
 
 uint8_t zj_ble_get_connected_status()
@@ -565,20 +602,28 @@ uint16_t zj_ble_get_mtu()
 
 void zj_ble_adv_start()
 {
-    // if(BLE_STATE_ENABLE != g_ble_init_flag)
-    //     return ;
+    if (ln_ble_is_connected()) {
+        return;
+    }
+    if(BLE_STATE_ENABLE != g_ble_init_flag)
+         return ;
+    ln_ble_adv_stop();
+    ln_ble_set_dev_adv_data();
+    ln_ble_adv_start();
+    LOG(LOG_LVL_INFO, "[%s, %d]\r\n", __func__, __LINE__);
 
-    if(LE_ADV_STATE_INITIALIZED == le_adv_state_get() 
+    /*if(LE_ADV_STATE_INITIALIZED == le_adv_state_get() 
             || LE_ADV_STATE_STOPING == le_adv_state_get() 
             || LE_ADV_STATE_STOPED == le_adv_state_get()) {
         ln_ble_adv_start();
-    }
+        LOG(LOG_LVL_INFO, "[%s, %d]ln_ble_adv_start\r\n", __func__, __LINE__);
+    }*/
 }
 
 void zj_ble_adv_stop()
 {
-    // if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
-    //     return ;
+    if(BLE_STATE_UNINITIALIZED == g_ble_init_flag)
+        return ;
 
     if(LE_ADV_STATE_STARTING == le_adv_state_get() 
             || LE_ADV_STATE_STARTED == le_adv_state_get()) {
@@ -590,13 +635,15 @@ void zj_ble_drv_deinit()
 {
     zj_ble_adv_stop();
     zj_ble_scan_stop();
-    g_ble_init_flag = 0; // BLE_STATE_DISABLE;
+    g_ble_init_flag = BLE_STATE_DISABLE;
 }
 
 static void zj_ble_task_entry(void *params)
 {
     char *name;
     uint8_t name_len;
+    uint8_t cross_time_count = 0;
+    bool btr_forward_trigger = 0;
 
     ln_kv_ble_app_init();
 
@@ -612,29 +659,61 @@ static void zj_ble_task_entry(void *params)
 
     ln_ble_app_init();
 
-    // zj_adapter_post_event(ADAPT_EVT_BLE_INIT_DONE,NULL,NULL,0);
-    // g_ble_init_flag = BLE_STATE_ENABLE;
+    zj_adapter_post_event(ADAPT_EVT_BLE_INIT_DONE,NULL,NULL,0);
+    g_ble_init_flag = BLE_STATE_ENABLE;
+    OS_Delay(1);
     while(1)
     {
-        OS_Delay(1000);
+        if(g_cross_switch_flag == DEVICE_ADV) {
+
+            btr_forward_trigger = 0;
+            cross_time_count = 0;
+
+            zj_ble_adv_stop();
+            //ln_ble_set_dev_adv_data();
+            zj_ble_adv_start();
+            OS_MsDelay(100);
+            g_cross_switch_flag = BTR_FORWARD_ADV;
+        } else {
+            if(g_btr_adv_update_flag) {
+                g_btr_adv_update_flag = 0;
+                if(zj_adapter_post_btr_realy_condition_get()){
+
+                    zj_ble_adv_stop();
+                    ln_ble_set_forward_adv_data();
+                    zj_ble_adv_start();
+                    btr_forward_trigger = 1;
+                }
+            }
+            if(btr_forward_trigger) {
+
+                cross_time_count++;
+                if(cross_time_count >= 14){
+
+                    cross_time_count = 0;
+                    g_cross_switch_flag = DEVICE_ADV;
+                }
+            }
+            OS_MsDelay(50);;
+        }
     }
 }
 
 /*******************************************************/
 void zj_ble_drv_init()
 {
-    if (1 == g_ble_init_flag)
+    if (BLE_STATE_ENABLE == g_ble_init_flag)
         return;
-    if(-1 == g_ble_init_flag) {
-        if(OS_OK != OS_ThreadCreate(&g_zj_ble_app_thread, "ZjBleAPP", zj_ble_task_entry, NULL, OS_PRIORITY_HIGH, ZJ_BLE_TASK_STACK_SIZE)) 
+    if(BLE_STATE_UNINITIALIZED == g_ble_init_flag) {
+        if(OS_OK != OS_ThreadCreate(&g_zj_ble_app_thread, "ZjBleAPP", zj_ble_task_entry, NULL, OS_PRIORITY_BELOW_NORMAL, ZJ_BLE_TASK_STACK_SIZE)) 
         {
             LN_ASSERT(1);
         }
     }
     
-    if(1 != g_ble_init_flag) {
+    if(BLE_STATE_DISABLE == g_ble_init_flag) {
         zj_adapter_post_event(ADAPT_EVT_BLE_INIT_DONE,NULL,NULL,0);
-        g_ble_init_flag = 1;
+        g_ble_init_flag = BLE_STATE_ENABLE;
     } else {
         //had inited, ignore
     }

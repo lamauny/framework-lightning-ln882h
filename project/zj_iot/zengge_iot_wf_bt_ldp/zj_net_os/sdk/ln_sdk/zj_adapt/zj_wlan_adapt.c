@@ -17,6 +17,7 @@
 #include "drv_adc_measure.h"
 #include "hal/hal_adc.h"
 #include "ln_nvds.h"
+#include "ln_kv_api.h"
 #include "ln_wifi_err.h"
 #include "ln_misc.h"
 #include "ln882h.h"
@@ -119,6 +120,47 @@ static void ap_disassoc_cb(void *arg)
     g_wifi_state = WIFI_STATE_WITH_AP_DISCONNECT;
 }
 
+#define ZJ_LN_PSK_VAL_LEN                  (40)
+#define TUYA_PSK_KV_INFO                  ((const char *)"zj_ada_psk")
+typedef struct {
+    uint8_t ssid[SSID_MAX_LEN];
+    uint8_t pwd[PASSWORD_MAX_LEN];
+    uint8_t pwd_len;
+    uint8_t psk[ZJ_LN_PSK_VAL_LEN];
+} zj_ln_wifi_psk_info_t;
+
+
+static int tuya_hal_wifi_psk_update(const zj_ln_wifi_psk_info_t * psk_info)
+{
+    int ret = 0;
+    ret = ln_kv_set(TUYA_PSK_KV_INFO, psk_info, sizeof(zj_ln_wifi_psk_info_t));
+    if (ret != KV_ERR_NONE)
+    {
+        LOG(LOG_LVL_ERROR, "kv set failed: %d\r\n", ret);
+        return -1;
+    }
+    return 0;
+}
+
+static int tuya_hal_wifi_psk_get(zj_ln_wifi_psk_info_t * psk_info)
+{
+    int ret = 0;
+    size_t v_len = 0;
+    if (psk_info == NULL)
+    {
+        return -1;
+    }
+
+    memset(psk_info, 0x0, sizeof(zj_ln_wifi_psk_info_t));
+    ret = ln_kv_get(TUYA_PSK_KV_INFO, psk_info, sizeof(zj_ln_wifi_psk_info_t), &v_len);
+    if (ret != KV_ERR_NONE)
+    {
+        LOG(LOG_LVL_ERROR, "kv get failed: %d\r\n", ret);
+        return -1;
+    }
+    return 0;
+}
+
 void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_len)
 {
     uint8_t mac_addr[6]        = {0x00, 0x50, 0xC2, 0x5E, 0xAA, 0xDA};
@@ -134,6 +176,10 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
         .scan_type = WIFI_SCAN_TYPE_ACTIVE,
         .scan_time = 20,
     };
+
+    if (pwd == NULL) {
+        connect.pwd = "";
+    }
 
     ZJ_LOG("[%s:%d] ssid:%s, pwd:%s\r\n",
         __func__, __LINE__, (const char *)ssid, (const char *)pwd);
@@ -168,10 +214,6 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
 
     //2. wifi start
     wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, &wifi_scan_complete_cb);
-    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECT_FAILED, &wifi_connect_failed_cb);
-    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_DISCONNECTED, wifi_disconnect_cb);
-    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECTED, wifi_connected_cb);
-    netdev_get_ip_cb_set(wifi_get_ip_cb);
 
 #if (WIFI_USER_USE_WPA3 == 1)
     extern void ln_wpa_sae_enable(void);
@@ -183,10 +225,46 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
     }
 
     connect.psk_value = NULL;
-    if (strlen(connect.pwd) != 0) {
-        if (0 == ln_psk_calc(connect.ssid, connect.pwd, psk_value, sizeof (psk_value))) {
-            connect.psk_value = psk_value;
-            hexdump(LOG_LVL_INFO, "psk value ", psk_value, sizeof(psk_value));
+
+    zj_ln_wifi_psk_info_t psk_info;
+    memset(&psk_info, 0, sizeof(psk_info));
+    int need_cal_psk = 0;
+    int ret = 0;
+
+    if (pwd == NULL || strlen(pwd) == 0) {
+        need_cal_psk = 0;
+    } else if (tuya_hal_wifi_psk_get(&psk_info) != 0) {
+        need_cal_psk = 1;
+    } else {
+        LOG(LOG_LVL_TRACE, "flash info: ssid:%s-%s, pwd:%s-%s,plen:%d \r\n",
+                psk_info.ssid, ssid, psk_info.pwd, pwd, psk_info.pwd_len);
+        if ((strncmp(psk_info.ssid, (const char *)ssid,
+                strlen((const char *)ssid)) == 0) &&
+            (psk_info.pwd_len == strlen(pwd)) &&
+            (memcmp(psk_info.pwd, pwd, psk_info.pwd_len) == 0)) {
+            // No need to calculate psk if the information is consistent
+            connect.psk_value = psk_info.psk;
+            LOG(LOG_LVL_INFO, "[%d] Find psk!\r\n", __LINE__);
+        } else {
+            // Recalculate psk
+            need_cal_psk = 1;
+            LOG(LOG_LVL_TRACE, "[%d] Need to calculate psk!\r\n", __LINE__);
+        }
+    }
+
+    if (need_cal_psk) {
+        psk_info.pwd_len = strlen((const char *)pwd);
+        strncpy(psk_info.pwd, pwd, sizeof(psk_info.pwd));
+        strncpy((char *)psk_info.ssid, (const char *)ssid, sizeof(psk_info.ssid));
+
+        LOG(LOG_LVL_TRACE, "[%d] calculate psk!\r\n", __LINE__);
+        if (0 == ln_psk_calc(connect.ssid, connect.pwd, psk_info.psk, sizeof(psk_info.psk))) {
+            connect.psk_value = psk_info.psk;
+
+            if (0 != tuya_hal_wifi_psk_update((const zj_ln_wifi_psk_info_t *)&psk_info))
+            {
+                LOG(LOG_LVL_ERROR, "update psk info failed!\r\n");
+            }
         }
     }
 
@@ -196,6 +274,11 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
         __scan_enable(0, 0, 0);
         __scan_enable(1, 96, 48);
     }
+
+    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECT_FAILED, &wifi_connect_failed_cb);
+    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_DISCONNECTED, wifi_disconnect_cb);
+    wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECTED, wifi_connected_cb);
+    netdev_get_ip_cb_set(wifi_get_ip_cb);
 
     *(volatile int *)(0x400121F8) = 0x003F; // BLE default PTI == 0, wifi first
 
@@ -211,9 +294,9 @@ void zj_wifi_STA_Stop()
     wifi_sta_status_t status;
 
     mode = wifi_current_mode_get();
-    wifi_get_sta_status(&status);
-    ZJ_LOG("[%s:%d] work mode:%d, status:%d\r\n",
-        __func__, __LINE__, mode, status);
+    int ret = wifi_get_sta_status(&status);
+    ZJ_LOG("[%s:%d] work mode:%d, status:%d, ret:%d\r\n",
+        __func__, __LINE__, mode, status, ret);
 
     if (!g_is_wifi_initialized) {
         return;
@@ -221,6 +304,10 @@ void zj_wifi_STA_Stop()
 
     if (mode == WIFI_MODE_STATION) {
         if (status == WIFI_STA_STATUS_CONNECTING || status == WIFI_STA_STATUS_CONNECTED) {
+            wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, NULL);
+            wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECT_FAILED, NULL);
+            wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_DISCONNECTED, NULL);
+            wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_CONNECTED, NULL);
             wifi_sta_disconnect();
         }
         netdev_set_state(NETIF_IDX_STA, NETDEV_DOWN);
@@ -418,7 +505,7 @@ int zj_restart_system(void)
 
 void zj_scan_router(zj_adapter_evt_t evt)
 {
-#define CONNECTED_SCAN_TIMES     (6)
+#define CONNECTED_SCAN_TIMES     (4)
 #define DEFAULT_SCAN_TIMES       (1)
 #define SCAN_TIMEOUT             (1500)
     wifi_scan_cfg_t   scan_cfg   = {0,};
@@ -436,6 +523,22 @@ void zj_scan_router(zj_adapter_evt_t evt)
         zj_wifi_drv_init();
     }
 
+    if (g_wifi_state == WIFI_STATE_IDLE)
+    {
+        uint8_t mac_addr[MAC_ADDRESS_LEN];
+        sysparam_sta_mac_get(mac_addr);
+        netdev_set_state(NETIF_IDX_STA, NETDEV_DOWN);
+        netdev_set_mac_addr(NETIF_IDX_STA, mac_addr);
+        netdev_set_active(NETIF_IDX_STA);
+
+#if (WIFI_USER_USE_WPA3 == 1)
+    extern void ln_wpa_sae_enable(void);
+    ln_wpa_sae_enable();
+#endif
+
+        wifi_sta_start(mac_addr, PM_WIFI_DEFAULT_PS_MODE);
+    }
+
     //1. creat sem, reg scan complete callback.
     if (OS_OK != OS_SemaphoreCreateBinary(&s_sem_scan))
     {
@@ -443,57 +546,99 @@ void zj_scan_router(zj_adapter_evt_t evt)
     }
 
     mode = wifi_current_mode_get();
-    if (WIFI_MODE_STATION != mode) {
-        int ap_info_items = 20;
+    if (WIFI_MODE_STATION != mode) { /* softAP scan */
+        int ap_info_items = 50;
+        int j = 0;
         ap_info_t *ap_info_rst = NULL;
-        int ap_info_rst_items = 0;
+        int ap_info_rst_items = 0, real_rst_items = 0;
+        scan_cnt = 2;
 
         ap_info = OS_Malloc(ap_info_items * sizeof(ap_info_t));
         if (!ap_info) {
             goto __exit;
         }
-
-        wifi_softap_scan(&scan_cfg, ap_info, ap_info_items, wifi_scan_complete_cb);
-        OS_SemaphoreWait(&s_sem_scan, OS_WAIT_FOREVER);
-
-        wifi_softap_scan_results_get(&ap_info_rst, &ap_info_rst_items);
-        LOG(LOG_LVL_INFO, "ap scan results:%d\r\n", ap_info_rst_items);
-
-        if (ap_info_rst_items <= 0) {
-            LOG(LOG_LVL_INFO, "no scan result!\r\n");
-            goto __exit;
-        }
-
-        // malloc memory to store ap list,and free in tuya_hal_wifi_release_ap()
-        scan_ptr = wifi_scan_buff = OS_Malloc(ap_info_rst_items * sizeof(zj_wifi_scan_inf_t));
+        scan_ptr = wifi_scan_buff = OS_Malloc(ap_info_items * sizeof(zj_wifi_scan_inf_t));
         if(NULL == wifi_scan_buff) {
             LOG(LOG_LVL_ERROR, "no memory!\r\n");
             goto __exit;
         }
 
-        memset(wifi_scan_buff, 0, (sizeof(zj_wifi_scan_inf_t) * ap_info_rst_items));
+        memset(wifi_scan_buff, 0, (sizeof(zj_wifi_scan_inf_t) * ap_info_items));
 
+        for (; scan_cnt > 0; scan_cnt--)
+        {
+            if (real_rst_items >= ap_info_items) {
+                break;
+            }
 
-        for (int i = 0; i < ap_info_rst_items; i++) {
+            ap_info_rst_items = 0;
+            memset(ap_info, 0, ap_info_items * sizeof(ap_info_t));
+            scan_cfg.scan_time = 60;
+            wifi_softap_scan(&scan_cfg, ap_info, ap_info_items, wifi_scan_complete_cb);
+            OS_SemaphoreWait(&s_sem_scan, 10000);
+
+            wifi_softap_scan_results_get(&ap_info_rst, &ap_info_rst_items);
+            LOG(LOG_LVL_INFO, "ap scan results:%d, cnt:%d\r\n", ap_info_rst_items, scan_cnt);
+
+            for (int i = 0; i < ap_info_rst_items; i++) {
+                LOG(LOG_LVL_INFO, "%10.10s   [%02x:%02x:%02x:%02x:%02x:%02x]"
+                    "   %4d   %2d   %4d\r\n", 
+                    ap_info_rst[i].ssid, ap_info_rst[i].bssid[0],
+                    ap_info_rst[i].bssid[1], ap_info_rst[i].bssid[2],
+                    ap_info_rst[i].bssid[3], ap_info_rst[i].bssid[4],
+                    ap_info_rst[i].bssid[5], ap_info_rst[i].rssi,
+                    ap_info_rst[i].channel, ap_info_rst[i].authmode);
+
+                for (j = 0; j < real_rst_items; j++) {
+                    if (memcmp(wifi_scan_buff[j].bssid, ap_info_rst[i].bssid, 6) == 0) {
+                        break;
+                    }
+                }
+
+                if (j == real_rst_items) {
+                    scan_ptr->channel = ap_info_rst[i].channel;
+                    scan_ptr->rssi    = ap_info_rst[i].rssi;
+                    memcpy(scan_ptr->bssid, ap_info_rst[i].bssid, BSSID_LEN);
+                    memcpy(scan_ptr->ssid,  ap_info_rst[i].ssid,  33);
+                    scan_ptr->ssid[32] = '\0';
+
+                    scan_ptr->authmode = ap_info_rst[i].authmode;
+                    scan_ptr++;
+                    real_rst_items++;
+                    if (real_rst_items >= ap_info_items) {
+                        break;
+                    }
+                }
+            }
+            LOG(LOG_LVL_INFO, "scan cnt:%d, real cnt:%d\r\n", scan_cnt, real_rst_items);
+
+        }
+
+        if (real_rst_items <= 0) {
+            LOG(LOG_LVL_INFO, "no scan result!\r\n");
+            goto __exit;
+        }
+
+        LOG(LOG_LVL_INFO, "=== AP scan results:%d ===\r\n", real_rst_items);
+        for (int i = 0; i < real_rst_items; i++) {
             LOG(LOG_LVL_INFO, "%10.10s   [%02x:%02x:%02x:%02x:%02x:%02x]"
                 "   %4d   %2d   %4d\r\n", 
-                ap_info_rst[i].ssid, ap_info_rst[i].bssid[0],
-                ap_info_rst[i].bssid[1], ap_info_rst[i].bssid[2],
-                ap_info_rst[i].bssid[3], ap_info_rst[i].bssid[4],
-                ap_info_rst[i].bssid[5], ap_info_rst[i].rssi,
-                ap_info_rst[i].channel, ap_info_rst[i].authmode);
-
-                scan_ptr->channel = ap_info_rst[i].channel;
-                scan_ptr->rssi    = ap_info_rst[i].rssi;
-                memcpy(scan_ptr->bssid, ap_info_rst[i].bssid, BSSID_LEN);
-                memcpy(scan_ptr->ssid,  ap_info_rst[i].ssid,  33);
-                scan_ptr->ssid[32] = '\0';
-
-                scan_ptr->authmode = ap_info_rst[i].authmode;
-                scan_ptr++;
+                wifi_scan_buff[i].ssid, wifi_scan_buff[i].bssid[0],
+                wifi_scan_buff[i].bssid[1], wifi_scan_buff[i].bssid[2],
+                wifi_scan_buff[i].bssid[3], wifi_scan_buff[i].bssid[4],
+                wifi_scan_buff[i].bssid[5], wifi_scan_buff[i].rssi,
+                wifi_scan_buff[i].channel, wifi_scan_buff[i].authmode);
         }
-        zj_adapter_post_event(evt, wifi_scan_buff, NULL, ap_info_rst_items);
-    } else {
+        LOG(LOG_LVL_INFO, "===========================\r\n");
+
+        zj_adapter_post_event(evt, wifi_scan_buff, NULL, real_rst_items);
+    }
+    else /* softAP scan */
+    {  
+        scan_cfg.scan_type = WIFI_SCAN_TYPE_ACTIVE;
+        scan_cfg.channel   = 0;
+        scan_cfg.scan_time = 25;
+
         wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, &wifi_scan_complete_cb);
 
         //2. start scan, wait scan complete
@@ -509,7 +654,7 @@ void zj_scan_router(zj_adapter_evt_t evt)
         {
             LOG(LOG_LVL_INFO, "adapt wifi start sta scan\r\n");
             wifi_sta_scan(&scan_cfg);
-            OS_SemaphoreWait(&s_sem_scan, OS_WAIT_FOREVER);
+            OS_SemaphoreWait(&s_sem_scan, 10000);
         }
 
         //3. scan complete,output ap list.
@@ -559,19 +704,13 @@ void zj_scan_router(zj_adapter_evt_t evt)
 __finish:
             //4. delete sem, callback
             wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, NULL);
-            if (wifi_scan_buff) {
-                OS_Free(wifi_scan_buff);
-            }
         }
 
-        // OS_SemaphoreDelete(&s_sem_scan);
         wifi_manager_ap_list_update_enable(LN_TRUE);
         wifi_manager_cleanup_scan_results();
-        // s_sem_scan.handle = NULL;
     }
 
     ZJ_LOG("scan finished!\r\n");
-    // return;
 
 __exit:
     OS_SemaphoreDelete(&s_sem_scan);
@@ -580,8 +719,10 @@ __exit:
         OS_Free(ap_info);
         ap_info = NULL;
     }
+    if (wifi_scan_buff) {
+        OS_Free(wifi_scan_buff);
+    }
 }
-
 
 void zj_wifi_get_ip_info(char *ip_addr)
 {
@@ -714,6 +855,9 @@ int zj_get_ap_rssi()
 {
     int8_t rssi = 0;
     wifi_sta_get_rssi(&rssi);
+    if (rssi >= 0) {
+        rssi = -1;
+    }
     ZJ_LOG("AP RSSI:%d\r\n", rssi);
     return (int)rssi;
 }

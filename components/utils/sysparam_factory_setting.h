@@ -60,9 +60,9 @@
 #define DHCPD_IP_RENEW_TIME       (2880) /**<  (uints:minute) */
 #define DHCPD_LISTEN_PORT         (67)
 #define DHCPD_CLIENT_MAX          (3)
-#define DHCPD_SER_IP              ("192.168.4.1")
-#define DHCPD_IP_POOL_START       ("192.168.4.101")
-#define DHCPD_IP_POOL_END         ("192.168.4.103")
+#define DHCPD_SER_IP              ("10.10.123.3")
+#define DHCPD_IP_POOL_START       ("10.10.123.100")
+#define DHCPD_IP_POOL_END         ("10.10.123.105")
 
 /**<  mDNS cfg default parameters */ 
 #define MDNS_ENABLE               (0)
