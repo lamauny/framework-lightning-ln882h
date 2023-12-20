@@ -43,6 +43,7 @@ static OS_Semaphore_t s_sem_scan = {.handle = NULL};
 
 extern uint8_t is_ble_scan_enable(void);
 extern void __scan_enable(uint8_t type, uint16_t interval, uint16_t wind);
+extern void ln_hash_mac_gen(uint8_t *mac);
 
 static void wifi_scan_complete_cb(void * arg)
 {
@@ -200,7 +201,7 @@ void zj_wifi_STA_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_l
         mac_addr[3] == STA_MAC_ADDR3 &&
         mac_addr[4] == STA_MAC_ADDR4 &&
         mac_addr[5] == STA_MAC_ADDR5) {
-        ln_generate_random_mac(mac_addr);
+        ln_hash_mac_gen(mac_addr);
         sysparam_sta_mac_update((const uint8_t *)mac_addr);
     }
 
@@ -351,7 +352,7 @@ void zj_wifi_AP_Start(uint8_t *ssid,uint8_t ssid_len,uint8_t *pwd,uint8_t pwd_le
         mac_addr[3] == STA_MAC_ADDR3 &&
         mac_addr[4] == STA_MAC_ADDR4 &&
         mac_addr[5] == STA_MAC_ADDR5) {
-        ln_generate_random_mac(mac_addr);
+        ln_hash_mac_gen(mac_addr);
         sysparam_softap_mac_update((const uint8_t *)mac_addr);
         sysparam_sta_mac_update((const uint8_t *)mac_addr);
     }

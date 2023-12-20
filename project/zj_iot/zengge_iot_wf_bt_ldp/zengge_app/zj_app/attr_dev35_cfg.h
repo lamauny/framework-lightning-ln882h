@@ -32,14 +32,14 @@
 #else
   #define LIGHT_CORE_DL_TIME      10
   //#define CUSTOMER_DIFF_BP101
-  //#define CUSTOMER_DIFF_BP102
+  #define CUSTOMER_DIFF_BP102
   //#define CUSTOMER_DIFF_BP103
   //#define CUSTOMER_DIFF_BP106
   //#define CUSTOMER_DIFF_BP107
   //#define CUSTOMER_DIFF_BP110
   //#define CUSTOMER_DIFF_BP111
   //#define CUSTOMER_DIFF_BP113
-  #define CUSTOMER_DIFF_BP114
+  // #define CUSTOMER_DIFF_BP114
   //#define CUSTOMER_DIFF_EJ101
 
   //#define CUSTOMER_DIFF_EH101
