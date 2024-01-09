@@ -596,7 +596,7 @@ void zj_scan_router(zj_adapter_evt_t evt)
                     }
                 }
 
-                if (j == real_rst_items) {
+                if (j == real_rst_items && (strlen(ap_info_rst[i].ssid) > 0)) {
                     scan_ptr->channel = ap_info_rst[i].channel;
                     scan_ptr->rssi    = ap_info_rst[i].rssi;
                     memcpy(scan_ptr->bssid, ap_info_rst[i].bssid, BSSID_LEN);

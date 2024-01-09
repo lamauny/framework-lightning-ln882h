@@ -26,7 +26,7 @@ static OS_Thread_t g_temp_thread;
 
 //#define ZJ_TEST_ONLY
 // #define ZJ_APPKEY_TEST
-#define WIFI_TEMP_CALIBRATE 1
+#define STATUS_MONITOR_TASK 0
 
 #define USR_APP_TASK_STACK_SIZE   6*1024 //Byte
 #define TEMP_APP_TASK_STACK_SIZE  2*1024 //Byte
@@ -103,8 +103,8 @@ static void zj_main_entry(void *params)
     OS_ThreadDelete(NULL);
 }
 
-
-void dump_task_stack_info(void)
+#if STATUS_MONITOR_TASK
+static void dump_task_stack_info(void)
 {
     static UBaseType_t   s_arraySize = 0;
     UBaseType_t   task_num = 0;
@@ -177,6 +177,7 @@ static void temp_app_task_entry(void *params)
         OS_MsDelay(1000);
     }
 }
+#endif
 
 void creat_usr_app_task(void)
 {
@@ -188,7 +189,7 @@ void creat_usr_app_task(void)
 
     // ble_creat_usr_app_task();
 
-#if  WIFI_TEMP_CALIBRATE
+#if STATUS_MONITOR_TASK
     if(OS_OK != OS_ThreadCreate(&g_temp_thread, "TempAPP", temp_app_task_entry, NULL, 1, TEMP_APP_TASK_STACK_SIZE)) {
         LN_ASSERT(1);
     }

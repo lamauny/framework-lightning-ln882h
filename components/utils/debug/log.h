@@ -13,7 +13,7 @@
 #define LOG_LVL_INFO                (LOG_LVL_EMERG + 3)
 #define LOG_LVL_DEBUG               (LOG_LVL_EMERG + 4)
 #define LOG_LVL_TRACE               (LOG_LVL_EMERG + 5)
-#define LOG_LVL_CTRL                LOG_LVL_INFO     //By modifying this value, control the different levels of log printing
+#define LOG_LVL_CTRL                LOG_LVL_WARN     //By modifying this value, control the different levels of log printing
 
 void log_init(void);
 void log_deinit(void);
