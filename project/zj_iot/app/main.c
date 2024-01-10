@@ -35,6 +35,15 @@ void $Sub$$free(void *addr)
 }
 #endif
 
+extern int log_stdio_write(char *buf, size_t size);
+int fputc(int ch, FILE* f)
+{
+    char c = ch;
+    log_stdio_write(&c, 1);
+    return ch;
+}
+
+
 int main (int argc, char* argv[])
 {
     LN_UNUSED(argc);
