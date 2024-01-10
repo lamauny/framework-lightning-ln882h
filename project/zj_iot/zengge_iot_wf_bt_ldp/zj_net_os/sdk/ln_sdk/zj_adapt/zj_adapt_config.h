@@ -80,8 +80,8 @@
 #define PORT_CONFIG_SYSTEM_TIME               xTaskGetTickCount()                                 /* 适配系统时间 */
 #define PROT_CONFIG_KEY_FLASH_SIZE            (4096)                                       /* 适配保存密钥的flash区域大小 */
 
-#define PROT_CONFIG_KEY_FLASH_OFFSET          0x00007000                                   /* 适配密钥在对应flash地址的起始值*/
-#define PROT_CONFIG_KEY_FLASH_ADDR            0x0000 + PROT_CONFIG_KEY_FLASH_OFFSET        /* 适配保存密钥的flash地址，4K */
+#define PROT_CONFIG_KEY_FLASH_OFFSET          0                                            /* 适配密钥在对应flash地址的起始值*/
+#define PROT_CONFIG_KEY_FLASH_ADDR            0x7000                                       /* 适配保存密钥的flash地址，4K */
 #define PORT_CONFIG_CIPHERTEXT_FLASH_ADDR     0x001F9000                                   /* 适配保存密文的flash地址，4K */
 #define PORT_CONFIG_IIC_FLASH_ADDR            0x001FF000                                   /* Murphy TODOs */
 #define PORT_CONFIG_USER_DATA_FLASH_ADDR      0x001FA000                                   /* 适配保存用户数据的flash地址 */
