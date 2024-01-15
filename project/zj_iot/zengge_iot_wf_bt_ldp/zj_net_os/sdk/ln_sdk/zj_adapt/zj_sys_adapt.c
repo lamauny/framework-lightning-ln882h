@@ -123,7 +123,7 @@ static void local_adapt_wdt_entry(void *arg)
 
 void WDT_IRQHandler()
 {
-    // ZJ_LOG("=== wdt irq handler, will reboot ===\r\n");
+    LOG(LOG_LVL_ERROR, "=== wdt irq handler, will reboot ===\r\n");
 }
 
 /**

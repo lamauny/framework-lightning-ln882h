@@ -71,6 +71,7 @@ int main (int argc, char* argv[])
     //4.cm backtrace
     cm_backtrace_init("combo_mcu_basic_example", "hw", "sw");
     LOG(LOG_LVL_ERROR, "------  zj iot project  ------\r\n");
+    LOG(LOG_LVL_ERROR, "------  reboot:%d(0:poweron 1:soft 2:watchdog)  ------\r\n", ln_chip_get_reboot_cause());
 
     //5. init NVDS&KV
     if (NVDS_ERR_OK != ln_nvds_init(NVDS_SPACE_OFFSET)) {

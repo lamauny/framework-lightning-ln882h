@@ -198,9 +198,13 @@ static int ota_persistent_write(const char *buf, const int32_t buf_len)
         }
         
         LOG(LOG_LVL_INFO, "hal flash erase start\r\n");
-        hal_flash_erase(flash_ota_start_addr + flash_ota_offset, SECTOR_SIZE_4KB);
-        LOG(LOG_LVL_INFO, "hal flash program start\r\n");
-        hal_flash_program(flash_ota_start_addr + flash_ota_offset, SECTOR_SIZE_4KB, (uint8_t *)temp4K_buf);
+        if (0 <= flash_ota_offset && flash_ota_offset <= (OTA_SPACE_SIZE - SECTOR_SIZE_4KB)) {
+            hal_flash_erase(flash_ota_start_addr + flash_ota_offset, SECTOR_SIZE_4KB);
+            LOG(LOG_LVL_INFO, "hal flash program start\r\n");
+            hal_flash_program(flash_ota_start_addr + flash_ota_offset, SECTOR_SIZE_4KB, (uint8_t *)temp4K_buf);
+        } else {
+            LOG(LOG_LVL_ERROR, "[%s:%d] error!!! write at flash:0x%p\r\n", __func__, __LINE__, flash_ota_start_addr + flash_ota_offset);
+        }
 
         flash_ota_offset += SECTOR_SIZE_4KB;
         memset(temp4K_buf, 0, SECTOR_SIZE_4KB);
@@ -226,10 +230,13 @@ static int ota_persistent_finish(void)
     }
 
     // write to flash
-    LOG(LOG_LVL_INFO, "write at flash: 0x%08x\r\n", flash_ota_start_addr + flash_ota_offset);
-    hal_flash_erase(flash_ota_start_addr + flash_ota_offset, SECTOR_SIZE_4KB);
-    hal_flash_program(flash_ota_start_addr + flash_ota_offset, SECTOR_SIZE_4KB, (uint8_t *)temp4K_buf);
-
+    if (0 <= flash_ota_offset && flash_ota_offset <= (OTA_SPACE_SIZE - SECTOR_SIZE_4KB)) {
+        LOG(LOG_LVL_INFO, "write at flash: 0x%08x\r\n", flash_ota_start_addr + flash_ota_offset);
+        hal_flash_erase(flash_ota_start_addr + flash_ota_offset, SECTOR_SIZE_4KB);
+        hal_flash_program(flash_ota_start_addr + flash_ota_offset, SECTOR_SIZE_4KB, (uint8_t *)temp4K_buf);
+    } else {
+        LOG(LOG_LVL_ERROR, "[%s:%d] error!!! write at flash:0x%p\r\n", __func__, __LINE__, flash_ota_start_addr + flash_ota_offset);
+    }
     OS_Free(temp4K_buf);
     temp4K_buf = NULL;
     temp4k_offset = 0;

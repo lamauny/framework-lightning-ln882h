@@ -596,9 +596,11 @@ void zj_scan_router(zj_adapter_evt_t evt)
                     }
                 }
 
-                if (j == real_rst_items && (strlen(ap_info_rst[i].ssid) > 0)) {
+                if ((j == real_rst_items) && 
+                    (strlen(ap_info_rst[i].ssid) > 0) && 
+                    (memcmp(ap_info_rst[i].ssid, "LEDnet", strlen("LEDnet")) != 0)) {
                     scan_ptr->channel = ap_info_rst[i].channel;
-                    scan_ptr->rssi    = ap_info_rst[i].rssi;
+                    scan_ptr->rssi    = ap_info_rst[i].rssi > 0 ? 0 : ap_info_rst[i].rssi;
                     memcpy(scan_ptr->bssid, ap_info_rst[i].bssid, BSSID_LEN);
                     memcpy(scan_ptr->ssid,  ap_info_rst[i].ssid,  33);
                     scan_ptr->ssid[32] = '\0';
