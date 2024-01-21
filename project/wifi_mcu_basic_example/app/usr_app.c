@@ -141,6 +141,12 @@ void wifi_init_sta(void)
             netdev_set_ip_info(NETIF_IDX_STA, &ip_info);
         #endif
     }
+#if LWIP_IPV6
+    struct netif * netif1 = netdev_get_netif(NETIF_IDX_STA);
+    netif_create_ip6_linklocal_address(netif1, 1);
+    LOG(LOG_LVL_INFO, "IPv6 link-local address: %s\r\n", ipaddr_ntoa(netif_ip_addr6(netif1, 0)));
+    netif_set_ip6_autoconfig_enabled(netif1, 1);
+#endif
 
     //3. wifi start
     wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, &wifi_scan_complete_cb);
