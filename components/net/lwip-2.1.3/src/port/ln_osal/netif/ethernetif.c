@@ -155,6 +155,11 @@ static err_t ethernetif_init(struct netif *netif, netif_idx_t nif_idx)
     netif->hwaddr_len = NETIF_MAX_HWADDR_LEN;
     netif->mtu = NETIF_MTU;
     netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP;
+#if LWIP_IPV6
+    extern err_t ethip6_output(struct netif *netif, struct pbuf *q, const ip6_addr_t *ip6addr);
+    netif->flags = netif->flags |NETIF_FLAG_MLD6;
+    netif->output_ip6 = ethip6_output;
+#endif
 
 #if LWIP_IGMP
     /* make LwIP_Init do igmp_start to add group 224.0.0.1 */
@@ -178,9 +183,15 @@ static void print_netdev_info(struct netif *nif)
 
     LOG(LOG_LVL_INFO, "+--------------- net device info ------------+\r\n");
     LOG(LOG_LVL_INFO, "|netif hostname: %-16s            |\r\n", nif->hostname);
+#if LWIP_IPV6
+    LOG(LOG_LVL_INFO, "|netif ip      = %-16s            |\r\n", ip4addr_ntoa(&nif->ip_addr.u_addr.ip4));
+    LOG(LOG_LVL_INFO, "|netif mask    = %-16s            |\r\n", ip4addr_ntoa(&nif->netmask.u_addr.ip4));
+    LOG(LOG_LVL_INFO, "|netif gateway = %-16s            |\r\n", ip4addr_ntoa(&nif->gw.u_addr.ip4));
+#else
     LOG(LOG_LVL_INFO, "|netif ip      = %-16s            |\r\n", ip4addr_ntoa(&nif->ip_addr));
     LOG(LOG_LVL_INFO, "|netif mask    = %-16s            |\r\n", ip4addr_ntoa(&nif->netmask));
     LOG(LOG_LVL_INFO, "|netif gateway = %-16s            |\r\n", ip4addr_ntoa(&nif->gw));
+#endif    
     LOG(LOG_LVL_INFO, "|netif mac     : [%02X:%02X:%02X:%02X:%02X:%02X] %-7s |\r\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5], "");
     LOG(LOG_LVL_INFO, "+--------------------------------------------+\r\n");
 }
@@ -329,9 +340,14 @@ netdev_link_state_t netdev_get_link_state(netif_idx_t nif_idx)
 int netdev_got_ip(void)
 {
     struct netif *nif = netdev_get_netif(netdev_get_active());
-    /* (DHCP supplied) or ((Static IP) and (LinkUp)) */
+    /* (DHCP supplied) or ((Static IP) and (LinkUp)) */    
+#if LWIP_IPV6
     return ((0 != dhcp_supplied_address(nif)) || \
-            ((IPADDR_ANY != nif->ip_addr.addr) && (nif->flags & (NETIF_FLAG_LINK_UP | NETIF_FLAG_UP))));       
+            ((ip_addr_isany_val(nif->ip_addr)) && (nif->flags & (NETIF_FLAG_LINK_UP | NETIF_FLAG_UP))));
+#else
+    return ((0 != dhcp_supplied_address(nif)) || \
+            ((IPADDR_ANY != nif->ip_addr.addr) && (nif->flags & (NETIF_FLAG_LINK_UP | NETIF_FLAG_UP))));
+#endif    
 }
 
 int netdev_set_mac_addr(netif_idx_t nif_idx, uint8_t *mac_addr)

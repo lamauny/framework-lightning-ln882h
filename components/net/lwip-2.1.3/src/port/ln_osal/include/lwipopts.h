@@ -111,7 +111,9 @@ a lot of data that needs to be copied, this should be set high. */
 
 
 #define LWIP_IPV4               1
-#define LWIP_IPV6               0
+#define LWIP_IPV6               1//0
+#define LWIP_BROADCAST_PING     LWIP_IPV6
+#define LWIP_MULTICAST_PING     LWIP_IPV6
 
 
 /* ---------- UDP options ---------- */
