@@ -33,6 +33,12 @@ static OS_Thread_t g_usr_app_thread;
 
 #define WIFI_TEMP_CALIBRATE             1//1
 
+#if (LWIP_DHCP == 0)
+    #define LOCAL_STATIC_IP_ADDR "192.168.1.123"
+    #define LOCAL_STATIC_GW_ADDR "192.168.1.1"
+    #define LOCAL_STATIC_NM_ADDR "255.255.255.0"
+#endif
+
 #if WIFI_TEMP_CALIBRATE
 static OS_Thread_t g_temp_cal_thread;
 #define TEMP_APP_TASK_STACK_SIZE   4*256 //Byte
@@ -124,6 +130,17 @@ static void wifi_init_sta(void)
     netdev_set_mac_addr(NETIF_IDX_STA, mac_addr);
     netdev_set_active(NETIF_IDX_STA);
     sysparam_sta_mac_update((const uint8_t *)mac_addr);
+
+    // static ip address
+    {
+        #if (LWIP_DHCP == 0)
+            tcpip_ip_info_t  ip_info;
+            ip_info.ip.addr      = ipaddr_addr((const char *)LOCAL_STATIC_IP_ADDR);
+            ip_info.gw.addr      = ipaddr_addr((const char *)LOCAL_STATIC_GW_ADDR);
+            ip_info.netmask.addr = ipaddr_addr((const char *)LOCAL_STATIC_NM_ADDR);
+            netdev_set_ip_info(NETIF_IDX_STA, &ip_info);
+        #endif
+    }
 
     //2. wifi start
     wifi_manager_reg_event_callback(WIFI_MGR_EVENT_STA_SCAN_COMPLETE, &wifi_scan_complete_cb);
