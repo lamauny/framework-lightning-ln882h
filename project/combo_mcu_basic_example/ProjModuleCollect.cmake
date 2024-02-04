@@ -59,6 +59,13 @@ list(APPEND MODULE_SRC ${KV_SRC})
 file(GLOB_RECURSE  NVDS_SRC  ${COMP_NVDS_DIR}/*.c)
 include_directories(${COMP_NVDS_DIR})
 list(APPEND MODULE_SRC ${NVDS_SRC})
+###################################  mbedtls    ################################
+file(GLOB_RECURSE  MBEDTLS_SRC  ${COMP_MBEDTLS_DIR}/library/*.c)
+file(GLOB_RECURSE  MBEDTLS_WRAPPER_SRC  ${COMP_MBEDTLS_DIR}/port_ln/library/*.c)
+include_directories(${COMP_MBEDTLS_DIR}/include)
+include_directories(${COMP_MBEDTLS_DIR}/port_ln/include)
+list(APPEND MODULE_SRC ${MBEDTLS_SRC})
+list(APPEND MODULE_SRC ${MBEDTLS_WRAPPER_SRC})
 
 ###################################  utils  ####################################
 set(UTILS_SRC
